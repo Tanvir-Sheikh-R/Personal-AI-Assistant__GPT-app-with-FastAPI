@@ -329,9 +329,9 @@ function appendUserMessage(text, filenames, error) {
   return div;
 }
 
-// Remove threads that no longer have any messages server-side (e.g. after a
-// server restart wiped the in-memory conversations) so empty shells don't
-// pile up in the sidebar. The active thread is always kept.
+// Remove unused empty thread shells from the sidebar (never messaged).
+// Conversations persist in SQLite across restarts, so this is not a
+// wipe-recovery workaround. The active thread is always kept.
 async function pruneStaleThreads(activeId) {
   const list = getThreads();
   const stale = [];
