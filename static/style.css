@@ -356,7 +356,7 @@ button { font-family: inherit; }
 /* Markdown formatting inside assistant answers */
 .message.assistant .bubble > :first-child { margin-top: 0; }
 .message.assistant .bubble > :last-child { margin-bottom: 0; }
-.message.assistant .bubble p { margin: 0 0 0.6rem; }
+.message.assistant .bubble p { margin: 0 0 0.3rem; }
 .message.assistant .bubble h1,
 .message.assistant .bubble h2,
 .message.assistant .bubble h3 {

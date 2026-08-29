@@ -16,3 +16,4 @@ python-dotenv
 sympy
 ddgs
 sentence-transformers
+docx2txt

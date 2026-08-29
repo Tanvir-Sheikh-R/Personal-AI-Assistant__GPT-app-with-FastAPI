@@ -1,5 +1,4 @@
 from pathlib import Path
-from contextlib import asynccontextmanager
 import time
 
 from fastapi import FastAPI, UploadFile, File, Form
@@ -7,8 +6,8 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from langchain_core.messages import HumanMessage, AIMessageChunk
 
-from chat_app_backend import build_chat, get_summary_for_chatHead
-from chat_app_backend_rag import add_documents_to_store
+from chat_app_backend import chat, get_summary_for_chatHead
+from chat_app_backend_rag import add_documents_to_store, clear_collection
 
 # Use absolute paths derived from this file so the app works regardless of the
 # directory uvicorn is started from (relative paths were breaking upload/static).
@@ -21,19 +20,7 @@ NODE_LABELS = {
     "tools": "Using tools",
 }
 
-state = {}
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    chat, conn = await build_chat()
-    state["chat"] = chat
-    state["conn"] = conn
-    yield
-    await conn.close()
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 
 @app.middleware("http")
@@ -59,17 +46,19 @@ def _sse(event: str, data: str) -> str:
 
 
 async def stream_chat_response(text: str, thread_id: str, kb_id: str):
-    chat = state["chat"]
     config = {"configurable": {"thread_id": thread_id}}
 
     buffer = ""
     current_id = None
     has_tool_call = False
     last_label = None
+    correction = False  # True once a check_answer replacement starts streaming
     last_flush = time.monotonic()
-    streamed_answer = ""  # tracks everything we've actually shown the user
 
     def should_flush():
+        # Stream incrementally: flush as soon as enough characters accumulated
+        # or enough time passed, so the client sees a smooth typewriter effect
+        # without a per-token event storm.
         return bool(buffer) and (len(buffer) >= 12 or time.monotonic() - last_flush >= 0.04)
 
     async for message_chunk, metadata in chat.astream(
@@ -80,11 +69,25 @@ async def stream_chat_response(text: str, thread_id: str, kb_id: str):
         node = metadata.get("langgraph_node")
         label = NODE_LABELS.get(node, "Thinking")
 
-        # check_answer's own LLM call is just the relevance classifier — never
-        # user-facing content. Ignore it entirely; handled after the loop instead.
+        # The check_answer node may append a replacement answer after the first
+        # one was already streamed. Flush the original, then tell the client to
+        # clear the bubble before streaming the corrected answer.
         if node == "check_answer":
+            if not isinstance(message_chunk, AIMessageChunk) or not message_chunk.content:
+                continue
+            if buffer and not has_tool_call:
+                yield _sse("token", buffer)
+                buffer = ""
+                has_tool_call = False
+            if not correction:
+                correction = True
+                yield _sse("clear", "")
+            yield _sse("token", message_chunk.content)
             continue
 
+        # Non-answer nodes (e.g. the ToolNode) produce a chunk per token, which
+        # would otherwise flood the client with repeated "status" events. Emit
+        # a status event only when the active phase actually changes.
         if node != "chat_message":
             if label != last_label:
                 yield _sse("status", label)
@@ -95,43 +98,33 @@ async def stream_chat_response(text: str, thread_id: str, kb_id: str):
             continue
 
         if message_chunk.id != current_id:
+            # A new message group started — flush the previous one, but only if
+            # it turned out NOT to be a tool call (tool-call preambles are discarded).
             if buffer and not has_tool_call:
                 yield _sse("token", buffer)
-                streamed_answer += buffer
             buffer = ""
             has_tool_call = False
             current_id = message_chunk.id
             last_flush = time.monotonic()
 
         if message_chunk.tool_call_chunks:
+            # This group is a tool call — its buffered content (if any) is never shown.
             has_tool_call = True
 
         if message_chunk.content:
             buffer += message_chunk.content
             if not has_tool_call and should_flush():
                 yield _sse("token", buffer)
-                streamed_answer += buffer
                 buffer = ""
                 last_flush = time.monotonic()
         elif label != last_label:
+            # Still "Thinking" inside the answer node before any content arrives.
             yield _sse("status", label)
             last_label = label
 
+    # Flush whatever's left once the stream ends (the final answer's group).
     if buffer and not has_tool_call:
         yield _sse("token", buffer)
-        streamed_answer += buffer
-
-    # Now check whether check_answer_node appended a correction after the fact.
-    snapshot = await chat.aget_state(config)
-    messages = snapshot.values.get("message", []) if snapshot.values else []
-    last_msg = messages[-1] if messages else None
-    if (
-        last_msg is not None
-        and getattr(last_msg, "content", None)
-        and last_msg.content != streamed_answer
-    ):
-        yield _sse("clear", "")
-        yield _sse("token", last_msg.content)
 
     yield _sse("done", "")
 
@@ -154,7 +147,6 @@ async def chat_endpoint(
 
 @app.get("/threads/{thread_id}")
 async def get_thread(thread_id: str):
-    chat = state["chat"]
     snapshot = await chat.aget_state({"configurable": {"thread_id": thread_id}})
     messages = snapshot.values.get("message", []) if snapshot.values else []
 
@@ -211,6 +203,20 @@ async def upload_files(kb_id: str = Form(...), files: list[UploadFile] = File(..
         "error": error,
         "filenames": filenames,
     })
+
+
+# ---------------------------------------------------------------------------
+# Reset a client's RAG collection (called when a browser refreshes, so each
+# session starts clean and users never share document histories).
+# ---------------------------------------------------------------------------
+
+@app.post("/reset")
+async def reset_client(kb_id: str = Form(...)):
+    try:
+        clear_collection(kb_id)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 # ---------------------------------------------------------------------------

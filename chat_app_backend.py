@@ -1,7 +1,5 @@
-from pathlib import Path
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-import aiosqlite
+from langgraph.checkpoint.memory import InMemorySaver
 from typing import TypedDict, Annotated
 from langgraph.graph.message import add_messages
 from dotenv import load_dotenv
@@ -75,6 +73,7 @@ def check_answer_node(state: MessageState):
         check = _check_answer(last_human.content, last_ai.content)
         if not check.is_relevant:
             return {'message': [AIMessage(
+                id = last_ai.id,
                 content="I wasn't able to generate a reliable answer to that. "
                         "Could you try rephrasing your question?"
             )]}
@@ -121,13 +120,11 @@ graph.add_conditional_edges(
 graph.add_edge('tools', 'chat_message')
 graph.add_edge('check_answer', END)
 
-DB_PATH = str(Path(__file__).resolve().parent / "chat_history.sqlite")
+# ---------------------------------------------------------------------------
+# Checkpointer — same architecture as the original version: InMemorySaver with
+# the graph compiled once at module level. Threads live for the lifetime of the
+# server process (unique thread ids keep browsers/users isolated).
+# ---------------------------------------------------------------------------
 
-
-async def build_chat():
-    """Open the SQLite connection and compile the graph. Call once at app startup."""
-    conn = await aiosqlite.connect(DB_PATH)
-    checkpointer = AsyncSqliteSaver(conn)
-    await checkpointer.setup()
-    compiled = graph.compile(checkpointer=checkpointer)
-    return compiled, conn
+checkpointer = InMemorySaver()
+chat = graph.compile(checkpointer=checkpointer)

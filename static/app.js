@@ -329,9 +329,9 @@ function appendUserMessage(text, filenames, error) {
   return div;
 }
 
-// Remove unused empty thread shells from the sidebar (never messaged).
-// Conversations persist in SQLite across restarts, so this is not a
-// wipe-recovery workaround. The active thread is always kept.
+// Remove threads that no longer have any messages server-side (e.g. after a
+// server restart wiped the in-memory conversations) so empty shells don't
+// pile up in the sidebar. The active thread is always kept.
 async function pruneStaleThreads(activeId) {
   const list = getThreads();
   const stale = [];
@@ -359,28 +359,29 @@ function clearMessages() {
   messagesEl.scrollTop = 0;
 }
 
+let viewToken = 0;
 async function loadThread(threadId) {
-  // Clear the messages but keep the hero hidden while fetching, so switching
-  // threads never flashes the logo or replays the leave animation.
+  const token = ++viewToken;
   messagesInner.innerHTML = "";
   emptyStateEl.classList.add("hidden");
   emptyStateEl.classList.remove("leaving");
   messagesEl.scrollTop = 0;
 
   const res = await fetch(`/threads/${threadId}`);
+  if (token !== viewToken) return;  // a newer view (new chat / another switch) superseded this
   if (!res.ok) {
     updateEmptyState();
     return;
   }
   const data = await res.json();
+  if (token !== viewToken) return;  // check again after the second await
   suppressHeroAnim = true;
   if (data.messages && data.messages.length) {
     data.messages.forEach((m) => appendMessage(m.role, m.content));
   }
   suppressHeroAnim = false;
-  updateEmptyState(); // correct final state: hero only if the thread is empty
+  updateEmptyState();
 }
-
 // ---------------------------------------------------------------------------
 // Sending a message + SSE streaming
 // ---------------------------------------------------------------------------
@@ -517,7 +518,7 @@ form.addEventListener("submit", async (e) => {
       if (!eventLine || !dataLine) continue;
 
       const event = eventLine.replace("event:", "").trim();
-      const data = dataLine.replace("data:", "").trim().replace(/\\n/g, "\n");
+      const data = dataLine.slice(6).replace(/\r$/, "").replace(/\\n/g, "\n");
 
       if (event === "clear") {
         // A check_answer correction replaces the previously streamed answer.
@@ -552,9 +553,19 @@ form.addEventListener("submit", async (e) => {
 
 document.getElementById("new-chat-btn").addEventListener("click", () => {
   if (activeStreamController) activeStreamController.abort();
-  createNewThread();
-  renderThreadList();
-  clearMessages();
+  viewToken++;
+
+  const currentId = getActiveThreadId();
+  const current = getThreads().find((t) => t.thread_id === currentId);
+
+  if (!current || current.title === null) {
+    // Already sitting on a blank, unused thread — don't create another one.
+    clearMessages();
+  } else {
+    createNewThread();
+    renderThreadList();
+    clearMessages();
+  }
   pendingFiles = [];
   renderPendingFiles();
   input.focus();
@@ -584,3 +595,7 @@ renderThreadList();
 const initialThread = getActiveThreadId();
 loadThread(initialThread);
 pruneStaleThreads(initialThread);
+
+// ---------------------------------------------------------------------------
+// Token Guard
+// ---------------------------------------------------------------------------

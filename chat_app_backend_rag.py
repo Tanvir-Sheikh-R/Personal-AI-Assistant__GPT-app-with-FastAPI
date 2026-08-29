@@ -37,7 +37,7 @@ def _get_embeddings() -> HuggingFaceEmbeddings:
     if _embeddings_instance is None:
         _embeddings_instance = HuggingFaceEmbeddings(
             model_name=EMBED_MODEL,
-
+            cache_folder=EMBED_CACHE
         )
     return _embeddings_instance
 
@@ -72,25 +72,27 @@ def add_documents_to_store(file_paths: list[str],
     vector_store.add_documents(chunks)
     return vector_store
 
-
-
-
-
-
-
+ 
 
 def _load_and_split(file_paths: list[str]):
     all_docs = []
     for file in file_paths:
         ext = file.split(".")[-1].lower()
         if ext == "pdf":
-            all_docs.extend(PyPDFLoader(file).load())
+            docs = PyPDFLoader(file).load()
         elif ext == "docx":
-            all_docs.extend(Docx2txtLoader(file).load())
+            docs = Docx2txtLoader(file).load()
         elif ext in ("txt", "md"):
-            all_docs.extend(TextLoader(file, encoding="utf-8").load())
+            docs = TextLoader(file, encoding="utf-8").load()
         else:
             raise ValueError(f"Unsupported file type: {ext}. Supported types: pdf, docx, txt, md")
+
+        if not any((d.page_content or "").strip() for d in docs):
+            raise ValueError(
+                f"No readable text found in '{os.path.basename(file)}' — "
+                "it may be a scanned/image-only document."
+            )
+        all_docs.extend(docs)
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
@@ -98,7 +100,6 @@ def _load_and_split(file_paths: list[str]):
         separators=["\n\n\n", "\n\n", "\n", "  ", " ", ""],
     )
     return splitter.split_documents(all_docs)
-
 
 
 
