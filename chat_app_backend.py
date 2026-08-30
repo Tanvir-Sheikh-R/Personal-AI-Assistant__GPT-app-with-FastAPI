@@ -125,6 +125,7 @@ graph.add_edge('check_answer', END)
 # the graph compiled once at module level. Threads live for the lifetime of the
 # server process (unique thread ids keep browsers/users isolated).
 # ---------------------------------------------------------------------------
-
+ 
+ 
 checkpointer = InMemorySaver()
 chat = graph.compile(checkpointer=checkpointer)
