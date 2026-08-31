@@ -1,0 +1,87 @@
+7.5.1  General ........................................................................................................................................................................................ 6
+7.5.2  Creating and updating  ...................................................................................................................................................7
+7.5.3  Control of documented information  .................................................................................................................7
+8  Operation  .....................................................................................................................................................................................................................7
+
+authorities.
+5.6 Contact with special interest 
+groups
+Control
+The organization shall establish and maintain contact with special 
+interest groups or other specialist security forums and professional 
+associations.
+5.7 Threat intelligence Control
+Information relating to information security threats shall be collected 
+and analysed to produce threat intelligence.
+5.8 Information security in project 
+management
+Control
+Information security shall be integrated into project management.
+5.9 Inventory of information and 
+other associated assets
+Control
+An inventory of information and other associated assets, including 
+owners, shall be developed and maintained.
+5.10 Acceptable use of information 
+and other associated assets
+Control
+
+ISO/IEC 27001:2022(E)
+ICS 03.100.70;	35.030
+Price based on 19 pages
+© ISO/IEC 2022 – All rights reserved  
+--``,,,,,``````,,,,,`,`,`,`,,`,-`-`,,`,,`,`,,`---
+
+0.2   Compatibility with other management system standards
+This document applies the high-level structure, identical sub-clause titles, identical text, common terms, 
+and core definitions defined in Annex SL of ISO/IEC Directives, Part 1, Consolidated ISO Supplement, 
+and therefore maintains compatibility with other management system standards that have adopted the 
+Annex SL.
+This common approach defined in the Annex SL will be useful for those organizations that choose to 
+operate a single management system that meets the requirements of two or more management system 
+standards.
+v© ISO/IEC 2022 – All rights reserved  
+--``,,,,,``````,,,,,`,`,`,`,,`,-`-`,,`,,`,`,,`---7.5.1  General ........................................................................................................................................................................................ 6
+7.5.2  Creating and updating  ...................................................................................................................................................7
+7.5.3  Control of documented information  .................................................................................................................7
+8  Operation  .....................................................................................................................................................................................................................7
+
+authorities.
+5.6 Contact with special interest 
+groups
+Control
+The organization shall establish and maintain contact with special 
+interest groups or other specialist security forums and professional 
+associations.
+5.7 Threat intelligence Control
+Information relating to information security threats shall be collected 
+and analysed to produce threat intelligence.
+5.8 Information security in project 
+management
+Control
+Information security shall be integrated into project management.
+5.9 Inventory of information and 
+other associated assets
+Control
+An inventory of information and other associated assets, including 
+owners, shall be developed and maintained.
+5.10 Acceptable use of information 
+and other associated assets
+Control
+
+ISO/IEC 27001:2022(E)
+ICS 03.100.70;	35.030
+Price based on 19 pages
+© ISO/IEC 2022 – All rights reserved  
+--``,,,,,``````,,,,,`,`,`,`,,`,-`-`,,`,,`,`,,`---
+
+0.2   Compatibility with other management system standards
+This document applies the high-level structure, identical sub-clause titles, identical text, common terms, 
+and core definitions defined in Annex SL of ISO/IEC Directives, Part 1, Consolidated ISO Supplement, 
+and therefore maintains compatibility with other management system standards that have adopted the 
+Annex SL.
+This common approach defined in the Annex SL will be useful for those organizations that choose to 
+operate a single management system that meets the requirements of two or more management system 
+standards.
+v© ISO/IEC 2022 – All rights reserved  
+--``,,,,,``````,,,,,`,`,`,`,,`,-`-`,,`,,`,`,,`---

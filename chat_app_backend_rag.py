@@ -15,11 +15,12 @@ import warnings
 import os
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain_community")
-print('after worning')
+# print('after worning')
 
 load_dotenv()
 llm = ChatGroq(model='openai/gpt-oss-120b', temperature=0.2)
 llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.2, disable_streaming=True)
+
 
 
 # ********************Embedding**********************
@@ -27,6 +28,7 @@ EMBED_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hf_cach
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 _embeddings_instance = None
+
 _vectorstore_cache = {}
 
 
@@ -113,6 +115,19 @@ def delete_documents_from_store(file_paths: list[str],
         return False
 
 
+    
+# ------------- check retrived chunks ---------------
+
+def save_docs(query, results):
+    # 1. Folder creation is fast, but you can wrap it or run it beforehand
+    os.makedirs('retrive_docs', exist_ok=True)
+    
+    # 2. Use 'async with' and 'aiofiles.open'
+    with open(f'retrive_docs/{query}.txt', 'a', encoding='utf-8') as f:
+        # Join the contents in memory first, then await the write operation
+        content = "\n\n".join(doc.page_content for doc in results)
+        f.write(content)
+# ---------------------------------------------------
 
 
 def generate_output(query: str, vector_store):
@@ -120,6 +135,9 @@ def generate_output(query: str, vector_store):
     # call doubled latency without improving results).
     results = vector_store.max_marginal_relevance_search(query=query, k=4)
     content = [doc.page_content for doc in results]
+
+    save_docs(query, results)   # -> remove this after checking 
+
     metadatas = [doc.metadata for doc in results]
 
     if not content:

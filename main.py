@@ -41,7 +41,7 @@ async def no_cache_for_static(request, call_next):
 def _sse(event: str, data: str) -> str:
     """Format one Server-Sent Event. Newlines in `data` must be escaped —
     SSE treats a bare newline as the end of the data field."""
-    safe = data.replace("\n", "\\n")
+    safe = data.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n")
     return f"event: {event}\ndata: {safe}\n\n"
 
 
