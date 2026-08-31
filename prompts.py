@@ -27,4 +27,3 @@ SYSTEM_PROMPT = SystemMessage(
         - Don't dump raw tool output verbatim if it's not already meant to be read as-is; fold it naturally into your response.
         - check for duplicate results, if founded give a proper single answer.
     """)
-

@@ -15,8 +15,7 @@ import warnings
 import os
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain_community")
-
-
+print('after worning')
 
 load_dotenv()
 llm = ChatGroq(model='openai/gpt-oss-120b', temperature=0.2)
@@ -72,7 +71,6 @@ def add_documents_to_store(file_paths: list[str],
     vector_store.add_documents(chunks)
     return vector_store
 
- 
 
 def _load_and_split(file_paths: list[str]):
     all_docs = []
