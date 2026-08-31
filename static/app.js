@@ -237,7 +237,7 @@ function renderThreadList() {
 
     const btn = document.createElement("button");
     btn.className = "thread-btn";
-    btn.textContent = t.title || "New chat";
+    btn.textContent = !t.title || !t.title.trim() ? "New chat" : t.title.trim();
     btn.onclick = () => {
       if (activeStreamController) activeStreamController.abort();
       setActiveThreadId(t.thread_id);
@@ -275,10 +275,15 @@ function startRename(thread, row) {
   const commit = (save) => {
     if (done) return;
     done = true;
-    if (save) {
+
+    const threads = getThreads();
+    const item = threads.find((t) => t.thread_id === thread.thread_id);
+    if (save && item) {
       const v = input.value.trim();
-      thread.title = v || null;
+      item.title = v || null;
+      saveThreads(threads);
     }
+
     renderThreadList();
   };
   input.addEventListener("keydown", (e) => {
@@ -375,6 +380,14 @@ async function loadThread(threadId) {
   }
   const data = await res.json();
   if (token !== viewToken) return;  // check again after the second await
+
+  const threads = getThreads();
+  const current = threads.find((t) => t.thread_id === threadId);
+  if (current && (!data.messages || data.messages.length === 0)) {
+    current.title = null;
+    saveThreads(threads);
+  }
+
   suppressHeroAnim = true;
   if (data.messages && data.messages.length) {
     data.messages.forEach((m) => appendMessage(m.role, m.content));

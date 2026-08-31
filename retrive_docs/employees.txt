@@ -1,0 +1,44 @@
+management system;
+g) promoting continual improvement; and
+h) supporting other relevant management roles to demonstrate their leadership as it applies to their 
+areas of responsibility.
+NOTE Reference to “business” in this document can be interpreted broadly to mean those activities that are 
+core to the purposes of the organization’s existence.
+   © ISO/IEC 2022 – All rights reserved
+  
+2
+--``,,,,,``````,,,,,`,`,`,`,,`,-`-`,,`,,`,`,,`---
+
+of the actions taken; and
+d) retain appropriate documented information as evidence of competence.
+NOTE Applicable actions can include, for example: the provision of training to, the mentoring of, or the re-
+assignment of current employees; or the hiring or contracting of competent persons.
+7.3  Awareness
+Persons doing work under the organization’s control shall be aware of:
+a) the information security policy;
+b) their contribution to the effectiveness of the information security management system, including 
+the benefits of improved information security performance; and
+c) the implications of not conforming with the information security management system 
+requirements.
+7.4  Communication
+The organization shall determine the need for internal and external communications relevant to the
+
+owners, shall be developed and maintained.
+5.10 Acceptable use of information 
+and other associated assets
+Control
+Rules for the acceptable use and procedures for handling information and 
+other associated assets shall be identified, documented and implemented.
+5.11 Return of assets Control
+Personnel and other interested parties as appropriate shall return all 
+the organization’s assets in their possession upon change or termination 
+of their employment, contract or agreement.
+© ISO/IEC 2022 – All rights reserved   
+ 
+11
+--``,,,,,``````,,,,,`,`,`,`,,`,-`-`,,`,,`,`,,`---
+
+9.3  Management review .......................................................................................................................................................................... 9
+9.3.1 General ........................................................................................................................................................................................ 9
+9.3.2 Management review inputs ...................................................................................................................................... 9
+9.3.3 Management review results  .....................................................................................................................................9
