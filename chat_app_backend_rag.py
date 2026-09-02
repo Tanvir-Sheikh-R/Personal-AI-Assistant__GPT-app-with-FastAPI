@@ -113,7 +113,6 @@ def delete_documents_from_store(file_paths: list[str],
         print(f"Error deleting {file_paths}: {e}")
         return False
 
-
     
 # ------------- check retrived chunks ---------------
 def save_docs(query, results, suffix=""):
@@ -143,7 +142,7 @@ class check_chunk_quality(BaseModel):
 def _expand_query(query: str) -> list[str]:
     expand_prompt = PromptTemplate(
         template="""
-            Generate alternative phrasings of the user's question to improve document retrieval.
+            Generate 2 alternative phrasings of the user's question to improve document retrieval.
             Include synonyms, related terms, and different ways the answer might be phrased in a document.
             Keep each variation short and standalone.
 
@@ -151,13 +150,20 @@ def _expand_query(query: str) -> list[str]:
         """,
         input_variables=['query']
     )
-    output = llm_structured.with_structured_output(QueryExpansion).invoke(
-        expand_prompt.format(query=query)
-    )
-    return [query] + output.queries  # always keep the original
+    try:
+        output = llm_structured.with_structured_output(QueryExpansion).invoke(
+            expand_prompt.format(query=query)
+        )
+        return [query] + output.queries
+    except Exception as e:
+        print(f"[query expansion] failed, using original query only: {e}")
+        return [query]
 
 
 def _generate_relavent_chunks(query: str, results) -> check_chunk_quality:
+    if not results:
+        return [], False
+    
     check_prompt = PromptTemplate(
         template="""
             You are a strict relevance grader for a retrieval-augmented generation system.
@@ -185,8 +191,13 @@ def _generate_relavent_chunks(query: str, results) -> check_chunk_quality:
     )
 
     numbered = "\n\n".join(f"[{i}] {doc.page_content}" for i, doc in enumerate(results))
-    output = llm_structured.with_structured_output(check_chunk_quality)
-    output = output.invoke(check_prompt.format(query=query, results=numbered))
+    try:
+        output = llm_structured.with_structured_output(check_chunk_quality).invoke(
+            check_prompt.format(query=query, results=numbered)
+        )
+    except Exception as e:
+        print(f"[grading] failed, treating as no-match: {e}")
+        return [], False
 
     relevant_docs = [results[i] for i in output.relevant_indeces if 0 <= i < len(results)]
     print(f"check_chunk_quality output: {output}")

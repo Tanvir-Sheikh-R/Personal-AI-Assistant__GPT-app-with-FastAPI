@@ -320,7 +320,7 @@ button { font-family: inherit; }
   word-break: break-word;
   line-height: 1.62;
   font-size: 0.96rem;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Comfortaa', 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 .message.user {
@@ -338,12 +338,13 @@ button { font-family: inherit; }
   gap: 0.7rem;
   align-items: flex-start;
   max-width: 88%;
+  min-width: 0;
 }
 
 .message.assistant .avatar {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   color: var(--accent);
   margin-top: 1px;
 }
@@ -385,7 +386,7 @@ button { font-family: inherit; }
   border-radius: 0.3rem;
   padding: 0.1rem 0.35rem;
   font-size: 0.85em;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'Comfortaa', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 .message.assistant .bubble pre {
   background: #f6f8f6;
@@ -417,7 +418,7 @@ button { font-family: inherit; }
   border-bottom: 1px solid #1e222a;
   padding: 0.3rem 0.75rem;
   font-size: 0.75rem;
-  font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
+  font-family: 'Comfortaa', 'SFMono-Regular', Consolas, Menlo, monospace;
   color: #9da5b4;
 }
 .message.assistant .bubble .code-lang {
@@ -472,18 +473,29 @@ button { font-family: inherit; }
   color: var(--text-soft);
 }
 .message.assistant .bubble a { color: var(--accent-dark); text-decoration: underline; }
+.message.assistant .bubble .table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 0.5rem 0 0.75rem;
+}
 .message.assistant .bubble table {
   border-collapse: collapse;
-  margin: 0.5rem 0;
   font-size: 0.9em;
+  width: max-content;     /* size columns to their content, don't force-fit */
+  min-width: 100%;        /* but still fill the bubble when it fits */
 }
 .message.assistant .bubble th,
 .message.assistant .bubble td {
   border: 1px solid var(--border);
-  padding: 0.35rem 0.6rem;
+  padding: 0.4rem 0.7rem;
   text-align: left;
+  vertical-align: top;
 }
-.message.assistant .bubble th { background: var(--bubble-bg); }
+.message.assistant .bubble th {
+  background: var(--bubble-bg);
+  font-weight: 600;
+  white-space: nowrap;    /* keep header text on one line (no mid-word breaks) */
+}
 .message.assistant .bubble hr {
   border: none;
   border-top: 1px solid var(--border);
@@ -491,9 +503,9 @@ button { font-family: inherit; }
 }
 .message.assistant .bubble strong,
 .message.assistant .bubble b {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-weight: 650;
-  color: #1e293b;
+  font-family: 'Comfortaa', 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 750;
+  color: #080e1b;
 }
 
 @keyframes pulse {
@@ -553,6 +565,12 @@ button { font-family: inherit; }
   font-size: 1rem;
   color: var(--text);
   padding: 0.5rem 0;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
 }
 
 #chat-input::placeholder { color: var(--muted); }

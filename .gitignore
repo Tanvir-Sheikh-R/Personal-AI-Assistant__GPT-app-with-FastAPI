@@ -33,3 +33,4 @@ vectorstore/
 .DS_Store
 Thumbs.db
 
+graph.ipynb

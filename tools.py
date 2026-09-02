@@ -24,7 +24,19 @@ def web_search(query: str) -> str:
     - Greetings or small talk
 
     Args:
-        query: A clear, standalone search query.
+        query: A short, search-engine-style keyword query — NOT a full natural-language
+        question. Strip filler words ("what is", "can you tell me", "I want to know"),
+        pronouns, and politeness, and keep only the essential search terms, the way
+        you'd type into a search engine.
+        - Rewrite vague or conversational phrasing into concrete terms
+          (e.g. convert "what's the weather like there today" into "weather Dhaka today").
+        - Include a specific year, date, or "latest" when recency matters, since search
+          results are ranked by relevance, not by your knowledge of the current date.
+        - For follow-up questions referencing earlier context (pronouns like "it", "that",
+          "the same thing"), resolve them into a standalone, self-contained query
+          (e.g. convert "what about its release date?" into "iPhone 16 release date").
+        - Keep it short — 3 to 8 words is usually ideal. Longer natural-language questions
+          return noisier, less relevant results.
 
     Returns:
         A string summarizing the top search results.
