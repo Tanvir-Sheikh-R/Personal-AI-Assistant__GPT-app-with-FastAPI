@@ -40,4 +40,32 @@ domain-specific feature engineering to improve predictive accuracy.
 Tech Stack: Python, LightGBM, XGBoost, CatBoost, PyTorch, GroupKFold 
 EDUCATION 
 BSc in Computer Science and Engineering — Alhaj Mockbul Hossain University College, Dhaka 
-April 2022 – Present
+April 2022 – PresentMD. TANVIR SHEIKH 
+tanvirsheikh0177@gmail.com  •  01778849350  •  Dhaka, Bangladesh •  Portfolio • GitHub •  LinkedIn 
+PROFESSIONAL SUMMARY 
+AI/ML Engineer with hands-on experience building LLM-powered applications: RAG pipelines (both custom-built and 
+LangChain-based), agent orchestration with LangGraph, and tool/function-calling systems via the Groq API. Comfortable 
+across the full stack — embeddings and vector search (ChromaDB), backend APIs (FastAPI), and deployment (Streamlit, 
+Docker) — with a deep-learning foundation in PyTorch. Currently expanding into production evaluation and cloud 
+deployment. 
+SKILLS 
+LLM & GenAI   : RAG (retrieval-augmented generation), LangChain, LangGraph, agentic tool use, prompt
+
+deployment. 
+SKILLS 
+LLM & GenAI   : RAG (retrieval-augmented generation), LangChain, LangGraph, agentic tool use, prompt 
+engineering, LLM-as-judge / answer verification, multi-model fallback routing, LLM APIs (Groq), HuggingFace 
+Vector Search & Embeddings : ChromaDB, HuggingFace sentence embeddings, MMR search, query expansion 
+ML Frameworks  : PyTorch, Scikit-learn, XGBoost, LightGBM, CatBoost 
+Backend & Data  : FastAPI, Pydantic, Pandas, NumPy, SQL (MySQL, PostgreSQL, SQLite, Supabase) 
+Tools & Deployment  : Git, Docker, Streamlit 
+Languages   : Python 
+PROJECTS 
+Personal AI Assistant with RAG — LLM Agent + Retrieval   —    • GitHub  •  Live Demo 
+• Built an agentic conversational assistant using LangGraph, giving the model access to 3 tools (calculator, web
+
+EDUCATION 
+BSc in Computer Science and Engineering — Alhaj Mockbul Hossain University College, Dhaka 
+April 2022 – Present 
+Relevant Coursework: Database Management Systems (DBMS), Data Structures and Algorithms, Artificial Intelligence, Machine 
+Learning, Software Development Engineering.
