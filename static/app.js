@@ -67,14 +67,15 @@ const chatAreaEl = document.querySelector(".chat-area");
 const composerWrapEl = document.querySelector(".composer-wrap");
 const brandEl = document.getElementById("brand");
 
-// The app's real logo (src/logo_green.svg), shown beside every assistant response.
+// The app logo on a green badge, using the original SVG asset.
 const LOGO_SVG =
-  '<svg class="avatar" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-  '<path fill="#6b8e55" d="m8,17v-5.6l-3.94,3.96c-.39.39-1.02.39-1.42,0h0c-.39-.4-.39-1.03,0-1.42l3.96-3.94H1c-.55,0-1-.45-1-1h0c0-.55.45-1,1-1h5.6l-3.96-3.94c-.39-.39-.39-1.02,0-1.42h0c.39-.4,1.03-.4,1.42,0l3.94,3.96V1c0-.55.45-1,1-1h0c.55,0,1,.45,1,1v5.6l3.94-3.96c.39-.39,1.02-.39,1.42,0h0c.39.4.39,1.03,0,1.42l-3.96,3.94h5.6c.55,0,1,.45,1,1h0c0,.55-.45,1-1,1h-5.6l3.96,3.94c.39.39.39,1.02,0,1.42h0c-.39.4-1.03.4-1.42,0l-3.94-3.96v5.6c0,.55-.45,1-1,1h0c-.55,0-1-.45-1-1Z"/>' +
-  "</svg>";
+  '<svg class="avatar" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<rect width="36" height="36" rx="9" fill="#7a9e6a"/>' +
+  '<image href="/src/logo_green.svg" x="9" y="9" width="18" height="18" filter="brightness(0) invert(1)" preserveAspectRatio="xMidYMid meet"/>' +
+  '</svg>';
 
 const DOC_ICON =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM13 9V3.5L18.5 9H13zM8 13h8v2H8v-2zm0-4h4v2H8V9z"/></svg>';
+  '<svg viewBox="0 0 25 25" aria-hidden="true"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM13 9V3.5L18.5 9H13zM8 13h8v2H8v-2zm0-4h4v2H8V9z"/></svg>';
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

@@ -223,4 +223,5 @@ async def reset_client(kb_id: str = Form(...)):
 # Frontend
 # ---------------------------------------------------------------------------
 
+app.mount("/src", StaticFiles(directory=str(BASE_DIR / "src")), name="src")
 app.mount("/", StaticFiles(directory=str(BASE_DIR / "static"), html=True), name="static")
