@@ -207,8 +207,7 @@ let suppressHeroAnim = false;
 
 function updateEmptyState() {
   const hasMessages = messagesInner.querySelectorAll(".message").length > 0;
-  // Logo + title stay pinned to the top (one line) while chatting.
-  brandEl.hidden = !hasMessages;
+  brandEl.hidden = false;
 
   if (hasMessages) {
     // Composer drops to the bottom once the conversation starts.

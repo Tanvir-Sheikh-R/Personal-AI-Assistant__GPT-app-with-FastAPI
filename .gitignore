@@ -29,3 +29,5 @@ vectorstore/
 # OS files
 .DS_Store
 Thumbs.db
+
+retrive_docs/
