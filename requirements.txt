@@ -18,4 +18,3 @@ ddgs
 sentence-transformers
 docx2txt
 pypdf
-aiofiles
