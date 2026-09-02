@@ -12,6 +12,9 @@ chat_history.sqlite-*
 .env
 .env.*
 
+retrive_docs/
+.retrive_docs/
+
 # Python cache
 __pycache__/
 *.py[cod]
@@ -30,4 +33,3 @@ vectorstore/
 .DS_Store
 Thumbs.db
 
-retrive_docs/
