@@ -177,7 +177,12 @@ function renderBubble(el, text) {
       .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-    el.innerHTML = marked.parse(cleanedText, { breaks: false, gfm: true });
+    // Wrap each table in its own horizontal-scroll container so only tables
+    // that overflow scroll sideways — the conversation itself does not.
+    const html = marked
+      .parse(cleanedText, { breaks: true, gfm: true })
+      .replace(/<table([^>]*)>([\s\S]*?)<\/table>/g, '<div class="table-scroll"><table$1>$2</table></div>');
+    el.innerHTML = html;
   } else {
     el.textContent = text;
   }
@@ -207,7 +212,9 @@ let suppressHeroAnim = false;
 
 function updateEmptyState() {
   const hasMessages = messagesInner.querySelectorAll(".message").length > 0;
-  brandEl.hidden = false;
+  // Hide the top brand bar on the empty / opening page; show it once the
+  // conversation has messages.
+  brandEl.hidden = !hasMessages;
 
   if (hasMessages) {
     // Composer drops to the bottom once the conversation starts.
@@ -369,6 +376,11 @@ function clearMessages() {
 
 let viewToken = 0;
 async function loadThread(threadId) {
+  // Attachments belong to the conversation they were added to — clear them
+  // when switching chats so they don't leak into other histories.
+  pendingFiles = [];
+  renderPendingFiles();
+
   const token = ++viewToken;
   messagesInner.innerHTML = "";
   emptyStateEl.classList.add("hidden");
@@ -411,6 +423,25 @@ const attachChipsEl = document.getElementById("attach-chips");
 let activeStreamController = null;
 let pendingFiles = [];
 
+// Auto-grow the composer textarea so multi-line messages are comfortable.
+function autoResize() {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 180) + "px";
+}
+
+// Enter sends; Shift+Enter inserts a newline (built-in textarea behavior).
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    if (form.requestSubmit) {
+      form.requestSubmit();
+    } else {
+      form.dispatchEvent(new Event("submit", { cancelable: true }));
+    }
+  }
+});
+input.addEventListener("input", autoResize);
+
 function renderPendingFiles() {
   attachChipsEl.innerHTML = "";
   pendingFiles.forEach((f, i) => {
@@ -445,6 +476,7 @@ form.addEventListener("submit", async (e) => {
   const hasFiles = pendingFiles.length > 0;
   if (!text && !hasFiles) return;
   input.value = "";
+  autoResize();
 
   if (activeStreamController) activeStreamController.abort();
   activeStreamController = new AbortController();
