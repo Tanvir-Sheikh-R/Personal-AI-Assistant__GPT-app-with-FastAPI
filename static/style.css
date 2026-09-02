@@ -343,9 +343,9 @@ button { font-family: inherit; }
 
 .message.assistant .avatar {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  color: var(--accent);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   margin-top: 1px;
 }
 
