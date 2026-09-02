@@ -1,3 +1,4 @@
+
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -18,8 +19,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain
 # print('after worning')
 
 load_dotenv()
-llm = ChatGroq(model='openai/gpt-oss-120b', temperature=0.2)
-llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.2, disable_streaming=True)
+llm = ChatGroq(model='openai/gpt-oss-20b', temperature=0.2)
+llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.1, disable_streaming=True)
 
 
 
@@ -28,9 +29,7 @@ EMBED_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hf_cach
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 _embeddings_instance = None
-
 _vectorstore_cache = {}
-
 
 
 def _get_embeddings() -> HuggingFaceEmbeddings:
@@ -117,102 +116,116 @@ def delete_documents_from_store(file_paths: list[str],
 
     
 # ------------- check retrived chunks ---------------
-
-def save_docs(query, results):
-    # 1. Folder creation is fast, but you can wrap it or run it beforehand
+def save_docs(query, results, suffix=""):
     os.makedirs('retrive_docs', exist_ok=True)
-    
-    # 2. Use 'async with' and 'aiofiles.open'
-    with open(f'retrive_docs/{query}.txt', 'a', encoding='utf-8') as f:
-        # Join the contents in memory first, then await the write operation
+
+    with open(f'retrive_docs/{query}_{suffix}.txt', 'a', encoding='utf-8') as f:
         content = "\n\n".join(doc.page_content for doc in results)
         f.write(content)
 # ---------------------------------------------------
 
 
+class QueryExpansion(BaseModel):
+    queries: list[str] = Field(
+        description="2 more rephrasings or related variations of the original query, "
+                    "covering different phrasings, synonyms, or angles the user might mean. "
+                    "Do not include the original query itself."
+    )
+
+class check_chunk_quality(BaseModel):
+    relevant_indeces: list[int] = Field(
+        description="0-based indices into the retrieved chunks that are relevant to the question"
+    )
+    relevant: bool = Field(description="True if atleast one relevant answer is found in the retrieved chunks else False")
+
+
+
+def _expand_query(query: str) -> list[str]:
+    expand_prompt = PromptTemplate(
+        template="""
+            Generate alternative phrasings of the user's question to improve document retrieval.
+            Include synonyms, related terms, and different ways the answer might be phrased in a document.
+            Keep each variation short and standalone.
+
+            Original question: {query}
+        """,
+        input_variables=['query']
+    )
+    output = llm_structured.with_structured_output(QueryExpansion).invoke(
+        expand_prompt.format(query=query)
+    )
+    return [query] + output.queries  # always keep the original
+
+
+def _generate_relavent_chunks(query: str, results) -> check_chunk_quality:
+    check_prompt = PromptTemplate(
+        template="""
+            You are a strict relevance grader for a retrieval-augmented generation system.
+            Your job is to decide which retrieved chunks, if any, contain information that
+            actually helps answer the user's question — not just chunks that share keywords
+            or topic overlap with it.
+
+            Question: {query}
+            Retrieved Chunks: {results}
+
+            Instructions:
+            - A chunk is relevant only if it contains facts, data, or content that directly
+            helps answer the question — partial relevance counts if the chunk contributes
+            a meaningful piece of the answer, even if it doesn't fully answer it alone.
+            - A chunk is NOT relevant if it merely mentions the same topic, entity, or
+            keywords without actually addressing what is being asked.
+            - Do not use outside knowledge to judge correctness — only judge whether the
+            chunk's content is relevant to the question, not whether it is factually true.
+            - Be strict: when in doubt, exclude a chunk rather than include a weak match.
+            - Return the 0-based indices of every chunk you judge relevant, in the order
+            they appear. If no chunks are relevant, return an empty list.
+            - Set `relevent` to True only if at least one chunk was judged relevant.
+        """,
+        input_variables=['query', 'results']
+    )
+
+    numbered = "\n\n".join(f"[{i}] {doc.page_content}" for i, doc in enumerate(results))
+    output = llm_structured.with_structured_output(check_chunk_quality)
+    output = output.invoke(check_prompt.format(query=query, results=numbered))
+
+    relevant_docs = [results[i] for i in output.relevant_indeces if 0 <= i < len(results)]
+    print(f"check_chunk_quality output: {output}")
+
+    return relevant_docs, output.relevant
+
+
+
 def generate_output(query: str, vector_store):
-    # Fast path: one retrieval pass, no query-expansion LLM call (that extra
-    # call doubled latency without improving results).
-    results = vector_store.max_marginal_relevance_search(query=query, k=4)
-    content = [doc.page_content for doc in results]
 
-    save_docs(query, results)   # -> remove this after checking 
+    expanded_queries = _expand_query(query)
 
-    metadatas = [doc.metadata for doc in results]
+    seen_ids = set()
+    all_results = []
+    for q in expanded_queries:
+        for doc in vector_store.max_marginal_relevance_search(query=q, k=3):
+            key = doc.page_content.strip()
+            if key not in seen_ids:
+                seen_ids.add(key)
+                all_results.append(doc)
 
-    if not content:
-        return "No documents have been uploaded yet. Please upload a file to enable document-based answers."
+    relevant_docs, is_relevant = _generate_relavent_chunks(query, all_results)
 
-    # Build a clean, de-duplicated context string with source labels and hand it
-    # straight back to the main model. (No extra LLM call inside the tool — that
-    # halved the previous latency; the main model composes the final answer.)
+    save_docs(query, relevant_docs, "after")        # -> remove this after checking
+    save_docs(query, all_results, "before")         # -> remove this after checking
+
+
+    if not is_relevant or not relevant_docs:
+        return 'No relevant documents found for the query. Please rephrase your question or upload relevant documents.'
+
+
     seen = set()
     context_parts = []
-    for meta, text in zip(metadatas, content):
-        key = (text or "").strip()
+    for doc in relevant_docs:
+        key = (doc.page_content or "").strip()
         if not key or key in seen:
             continue
         seen.add(key)
-        source = (meta or {}).get("source", "document")
+        source = (doc.metadata or {}).get("source", "document")
         context_parts.append(f"[Source: {source}]\n{key}")
+
     return "\n\n".join(context_parts)
-
-# @tool
-# def rag_tool(query : str):
-
-#     """Search and retrieve relevant information from the user's uploaded documents 
-#     or knowledge base.
-
-#     Use this tool whenever the user asks a question that could be answered by 
-#     specific facts, data, definitions, or content that may exist in their documents 
-#     — including questions about people, projects, numbers, dates, or anything not 
-#     considered common/general knowledge.
-
-#     Do NOT use this tool for:
-#     - Greetings or small talk (e.g. "hi", "how are you")
-#     - Simple math or logic questions
-#     - General knowledge the model already knows confidently
-#     - Follow-up questions that are just clarifying tone/formatting, not facts
-
-#     Args:
-#         query: A clear, standalone search query representing what the user wants 
-#         to find. Rephrase vague or pronoun-heavy user questions into a specific, 
-#         self-contained query (e.g., convert "what about its pricing?" into 
-#         "product pricing details").
-
-#     Returns:
-#         A string containing the most relevant retrieved passages, or a message 
-#         indicating no relevant documents were found.
-#     """
-
-#     vector_store = add_documents_to_store(st.session_state['pdf_files'])
-#     generated_output = generate_output(query, vector_store)
-
-#     return generated_output
-
-
-
-
-
-#  **************************** test **************************
-
-# llm_with_tools = llm.bind_tools([rag_tool])
-
-# message = [HumanMessage(content=st.session_state['message'][-1])]
-# result = llm_with_tools.invoke(message)
-# message.append(result)
-
-# if result.tool_calls:
-#     for tool_call in result.tool_calls:
-#         if tool_call["name"] == "rag_tool":
-#             output = rag_tool.invoke(tool_call["args"])
-#         else:
-#             output = f"Error: unknown tool '{tool_call['name']}'"
-#         message.append(ToolMessage(content=str(output), tool_call_id=tool_call["id"]))
-
-#     final_result = llm.invoke(message)
-#     print(final_result.content)
-# else:
-#     print(result.content)
-
-# print(st.session_state['message'][-1])

@@ -12,7 +12,7 @@ SYSTEM_PROMPT = SystemMessage(
 
         When to use tools:
         - Use the calculator for any arithmetic or math expression the user gives you — don't compute it yourself.
-        - Use document search whenever the user has uploaded or attached documents, or asks anything that could be answered by their files (specific facts, data, people, projects, numbers, dates). If the message says "Attached files: ...", the user just gave you documents — search them before answering.
+        - Use document search whenever the user has uploaded or attached documents, or asks anything that could be answered by their files (specific facts, data, people, projects, numbers, dates). If the message says "Attached files: ..." or the query is related to the previous message where the document is used, the user just gave you documents — search them before answering.
         - Use web search for current events, real-time information, or general facts not likely to be in their documents.
         - Don't use a tool for greetings, small talk, or things you already know confidently that aren't document- or time-sensitive.
 

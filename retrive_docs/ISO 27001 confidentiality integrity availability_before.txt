@@ -1,0 +1,161 @@
+This document can be used by internal and external parties to assess the organization's ability to meet 
+the organization’s own information security requirements.
+The order in which requirements are presented in this document does not reflect their importance 
+or imply the order in which they are to be implemented. The list items are enumerated for reference 
+purpose only.
+ISO/IEC 27000 describes the overview and the vocabulary of information security management 
+systems, referencing the information security management system family of standards (including 
+ISO/IEC 27003[2], ISO/IEC 27004[3] and ISO/IEC 27005[4]), with related terms and definitions.
+ 
+0.2   Compatibility with other management system standards
+
+ISO/IEC 27001:2022(E)
+7  Support
+7.1  Resources
+The organization shall determine and provide the resources needed for the establishment, 
+implementation, maintenance and continual improvement of the information security management 
+system.
+7.2  Competence
+The organization shall:
+a) determine the necessary competence of person(s) doing work under its control that affects its 
+information security performance;
+b) ensure that these persons are competent on the basis of appropriate education, training, or 
+experience;
+c) where applicable, take actions to acquire the necessary competence, and evaluate the effectiveness 
+of the actions taken; and
+d) retain appropriate documented information as evidence of competence.
+
+ISO/IEC 27001:2022(E)
+Foreword
+ISO (the International Organization for Standardization) and IEC (the International Electrotechnical 
+Commission) form the specialized system for worldwide standardization. National bodies that are 
+members of ISO or IEC participate in the development of International Standards through technical 
+committees established by the respective organization to deal with particular fields of technical 
+activity. ISO and IEC technical committees collaborate in fields of mutual interest. Other international 
+organizations, governmental and non-governmental, in liaison with ISO and IEC, also take part in the 
+work.
+The procedures used to develop this document and those intended for its further maintenance
+
+ii
+ISO/IEC 27001:2022(E)
+COPYRIGHT PROTECTED DOCUMENT
+©  ISO/IEC 2022
+All rights reserved. Unless otherwise specified, or required in the context of its implementation, no part of this publication may 
+be reproduced or utilized otherwise in any form or by any means, electronic or mechanical, including photocopying, or posting on 
+the internet or an intranet, without prior written permission. Permission can be requested from either ISO at the address below 
+or ISO’s member body in the country of the requester.
+ISO copyright office
+CP 401 • Ch. de Blandonnet 8
+CH-1214 Vernier, Geneva
+Phone: +41 22 749 01 11
+Email: copyright@iso.org
+Website: www.iso.org
+Published in Switzerland
+   © ISO/IEC 2022 – All rights reserved
+ 
+--``,,,,,``````,,,,,`,`,`,`,,`,-`-`,,`,,`,`,,`---
+
+ISO/IEC 27001:2022(E)
+6.1.2  Information security risk assessment
+The organization shall define and apply an information security risk assessment process that:
+a) establishes and maintains information security risk criteria that include:
+1) the risk acceptance criteria; and
+2) criteria for performing information security risk assessments;
+b) ensures that repeated information security risk assessments produce consistent, valid and 
+comparable results;
+c) identifies the information security risks:
+1) apply the information security risk assessment process to identify risks associated with 
+the loss of confidentiality, integrity and availability for information within the scope of the 
+information security management system; and
+2) identify the risk owners;
+
+ISO/IEC 27001:2022(E)
+7. 5 Protecting against physical and 
+environmental threats
+Control
+Protection against physical and environmental threats, such as natural 
+disasters and other intentional or unintentional physical threats to 
+infrastructure shall be designed and implemented.
+7.6 Working in secure areas Control
+Security measures for working in secure areas shall be designed and 
+implemented.
+7.7 Clear desk and clear screen Control
+Clear desk rules for papers and removable storage media and clear 
+screen rules for information processing facilities shall be defined and 
+appropriately enforced.
+7.8 Equipment siting and protection Control
+Equipment shall be sited securely and protected.
+7.9 Security of assets off-premises Control
+Off-site assets shall be protected.
+
+ISO/IEC 27001:2022(E)
+6 People controls
+6.1 Screening Control
+Background verification checks on all candidates to become personnel 
+shall be carried out prior to joining the organization and on an ongoing 
+basis taking into consideration applicable laws, regulations and ethics 
+and be proportional to the business requirements, the classification of 
+the information to be accessed and the perceived risks.
+6.2 Terms and conditions of em -
+ployment
+Control
+The employment contractual agreements shall state the personnel’s and 
+the organization’s responsibilities for information security.
+6.3 Information security awareness, 
+education and training
+Control
+Personnel of the organization and relevant interested parties shall receive
+
+ISO/IEC 27001:2022(E)
+b) documented information determined by the organization as being necessary for the effectiveness 
+of the information security management system.
+NOTE The extent of documented information for an information security management system can differ 
+from one organization to another due to:
+1) the size of organization and its type of activities, processes, products and services;
+2) the complexity of processes and their interactions; and
+3) the competence of persons.
+7.5.2  Creating and updating
+When creating and updating documented information the organization shall ensure appropriate:
+a) identification and description (e.g. a title, date, author, or reference number);
+b) format (e.g. language, software version, graphics) and media (e.g. paper, electronic); and
+
+www.iso.org/iso/foreword.html . In the IEC, see www.iec.ch/understanding-standards .
+This document was prepared by Joint Technical Committee ISO/IEC JTC 1, Information Technology, 
+Subcommittee SC 27, Information security, cybersecurity and privacy protection .
+This third edition cancels and replaces the second edition (ISO/IEC 27001:2013), which has been 
+technically revised. It also incorporates the Technical Corrigenda ISO/IEC 27001:2013/Cor 1:2014 and 
+ISO/IEC 27001:2013/Cor 2:2015.
+The main changes are as follows:
+— the text has been aligned with the harmonized structure for management system standards 
+and ISO/IEC 27002:2022.
+Any feedback or questions on this document should be directed to the user’s national standards
+
+ISO/IEC 27001:2022(E)
+5.12 Classification of information Control
+Information shall be classified according to the information security 
+needs of the organization based on confidentiality, integrity, availability 
+and relevant interested party requirements.
+5.13 Labelling of information Control
+An appropriate set of procedures for information labelling shall be 
+developed and implemented in accordance with the information clas -
+sification scheme adopted by the organization.
+5.14 Information transfer Control
+Information transfer rules, procedures, or agreements shall be in place 
+for all types of transfer facilities within the organization and between 
+the organization and other parties.
+5.15 Access control Control
+Rules to control physical and logical access to information and other
+
+ISO/IEC 27001:2022(E)
+NOTE The requirements of interested parties can include legal and regulatory requirements and contractual 
+obligations.
+4.3  Determining the scope of the information security management system
+The organization shall determine the boundaries and applicability of the information security 
+management system to establish its scope.
+When determining this scope, the organization shall consider:
+a) the external and internal issues referred to in 4.1;
+b) the requirements referred to in 4.2; 
+c) interfaces and dependencies between activities performed by the organization, and those that are 
+performed by other organizations.
+The scope shall be available as documented information.
+4.4  Information security management system
