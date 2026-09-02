@@ -63,6 +63,7 @@ button { font-family: inherit; }
 }
 
 .sidebar-top {
+  
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -78,6 +79,7 @@ button { font-family: inherit; }
 }
 
 .sidebar-toggle {
+
   background: none;
   border: none;
   color: var(--muted);
@@ -226,7 +228,7 @@ button { font-family: inherit; }
 }
 .brand-title {
   font-family: 'Comfortaa', 'Newsreader', serif;
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.01em;
