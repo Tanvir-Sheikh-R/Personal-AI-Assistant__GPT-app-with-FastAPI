@@ -173,7 +173,11 @@ if (window.marked) {
 // unavailable or the text is empty).
 function renderBubble(el, text) {
   if (window.marked && text) {
-    el.innerHTML = marked.parse(text, { breaks: true, gfm: true });
+    const cleanedText = text
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    el.innerHTML = marked.parse(cleanedText, { breaks: false, gfm: true });
   } else {
     el.textContent = text;
   }
