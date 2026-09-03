@@ -7,12 +7,15 @@ from groq import RateLimitError, APIError, APIConnectionError
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from functools import partial
-from prompts import SYSTEM_PROMPT
+from prompts import system_prompt
 from tools import calculator, rag_tool, web_search
 from llm_router import invoke_with_fallback, MODEL_CHAIN
 from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
 from chat_app_backend_rag import llm_structured
+from datetime import datetime
+
+current_date = datetime.now().strftime("%B %d, %Y")  # e.g. "March 15, 2023"
 
 load_dotenv()
 
@@ -106,7 +109,7 @@ def chat_message(state: MessageState):
     # Copy instead of mutating the reducer-owned list from state directly.
     message = list(state['message'])
     if not any(isinstance(m, SystemMessage) for m in message):
-        message = [SYSTEM_PROMPT] + message
+        message = [system_prompt(current_date)] + message
 
     try:
         response = invoke_with_fallback(message, tools=tools)
