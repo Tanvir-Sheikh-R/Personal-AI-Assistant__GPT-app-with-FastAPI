@@ -221,8 +221,8 @@ def generate_output(query: str, vector_store):
 
     relevant_docs, is_relevant = _generate_relavent_chunks(query, all_results)
 
-    save_docs(query, relevant_docs, "after")        # -> remove this after checking
-    save_docs(query, all_results, "before")         # -> remove this after checking
+    # save_docs(query, relevant_docs, "after")        # -> remove this after checking
+    # save_docs(query, all_results, "before")         # -> remove this after checking
 
 
     if not is_relevant or not relevant_docs:

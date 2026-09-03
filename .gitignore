@@ -34,3 +34,4 @@ vectorstore/
 Thumbs.db
 
 graph.ipynb
+.dockerignore
