@@ -18,3 +18,4 @@ ddgs
 sentence-transformers
 docx2txt
 pypdf
+docker
