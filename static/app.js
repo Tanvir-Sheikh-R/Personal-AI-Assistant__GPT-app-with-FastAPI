@@ -66,6 +66,14 @@ const emptyStateEl = document.getElementById("empty-state");
 const chatAreaEl = document.querySelector(".chat-area");
 const composerWrapEl = document.querySelector(".composer-wrap");
 const brandEl = document.getElementById("brand");
+const streamStatusEl = document.getElementById("stream-status");
+
+function hideStreamStatus() {
+  if (streamStatusEl) {
+    streamStatusEl.hidden = true;
+    streamStatusEl.textContent = "";
+  }
+}
 
 // The app logo on a green badge, using the original SVG asset.
 const LOGO_SVG =
@@ -485,17 +493,32 @@ form.addEventListener("submit", async (e) => {
 
   const threadId = getActiveThreadId();
   const isFirstMessage = messagesInner.querySelectorAll(".message").length === 0;
-  const filenames = pendingFiles.map((f) => f.name);
+  const filesToUpload = pendingFiles.slice();
+  const filenames = filesToUpload.map((f) => f.name);
+
+  // Attachments were "consumed" by this send — clear the chips right away so
+  // they don't linger while the (slower) indexing runs below.
+  pendingFiles = [];
+  renderPendingFiles();
 
   // Show the user's message (text + attached docs) right away.
   const userDiv = appendUserMessage(text, filenames, null);
 
+  // While attached files are being indexed, show a status label styled like the
+  // other node labels ("Thinking…", "Using tools…") so the user sees progress.
+  const processingText = filenames.length === 1 ? "Processing file..." : "Processing files...";
+  let assistantBubble = null;
+  if (filesToUpload.length) {
+    assistantBubble = appendMessage("assistant", processingText);
+    assistantBubble.classList.add("status-label");
+  }
+
   // Index the attached documents so RAG can find them.
   let indexedError = null;
-  if (hasFiles) {
+  if (filesToUpload.length) {
     const fd = new FormData();
     fd.append("kb_id", kbId);
-    for (const f of pendingFiles) fd.append("files", f);
+    for (const f of filesToUpload) fd.append("files", f);
     try {
       const upRes = await fetch("/upload", { method: "POST", body: fd });
       const up = await upRes.json();
@@ -510,11 +533,15 @@ form.addEventListener("submit", async (e) => {
       userDiv.appendChild(note);
     }
   }
-  pendingFiles = [];
-  renderPendingFiles();
 
-  const assistantBubble = appendMessage("assistant", "Thinking...");
-  assistantBubble.classList.add("status-label");
+  if (!assistantBubble) {
+    // No attachments — the assistant just "thinks".
+    assistantBubble = appendMessage("assistant", "Thinking...");
+    assistantBubble.classList.add("status-label");
+  } else {
+    // Files finished processing — move on to the normal answering phase.
+    assistantBubble.textContent = "Thinking...";
+  }
 
   // Let the model know documents were just attached, so it uses the RAG tool
   // (the bubble itself shows the clean text + attachment cards).
@@ -574,15 +601,24 @@ form.addEventListener("submit", async (e) => {
         answer = "";
         assistantBubble.classList.remove("status-label");
         assistantBubble.textContent = "";
+        hideStreamStatus();
       } else if (event === "token") {
         assistantBubble.classList.remove("status-label");
         answer += data;
         renderBubble(assistantBubble, answer);
         messagesEl.scrollTop = messagesEl.scrollHeight;
+        hideStreamStatus();
+      } else if (event === "phase") {
+        // Post-answer LLM phase (relevance check / regenerating) — show it so
+        // the user knows the model is still working.
+        if (data) {
+          streamStatusEl.textContent = `${data}…`;
+          streamStatusEl.hidden = false;
+        }
       } else if (event === "status") {
         if (!answer) assistantBubble.textContent = `${data}...`;
       } else if (event === "done") {
-        // stream finished
+        hideStreamStatus();
       }
     }
   }

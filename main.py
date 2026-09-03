@@ -61,11 +61,34 @@ async def stream_chat_response(text: str, thread_id: str, kb_id: str):
         # without a per-token event storm.
         return bool(buffer) and (len(buffer) >= 12 or time.monotonic() - last_flush >= 0.04)
 
-    async for message_chunk, metadata in chat.astream(
+    async for kind, payload in chat.astream(
         {"message": [HumanMessage(text)], "kb_id": kb_id},
         config=config,
-        stream_mode="messages",
+        stream_mode=["messages", "updates"],
     ):
+        if kind != "messages":
+            # Flush any throttled answer text first, so phase markers always
+            # arrive AFTER the full answer (never interleaved mid-sentence).
+            if buffer and not has_tool_call:
+                yield _sse("token", buffer)
+                buffer = ""
+                has_tool_call = False
+                last_flush = time.monotonic()
+            # "updates": a node just finished. Use it to tell the user what is
+            # happening during the otherwise-silent LLM pauses.
+            for node_name, state_update in payload.items():
+                msgs = state_update.get("message") or []
+                last = msgs[-1] if msgs else None
+                if node_name == "chat_message" and last is not None and not getattr(last, "tool_calls", None):
+                    # The final (non-tool) answer is done — the relevance judge
+                    # runs next, which takes a few silent seconds.
+                    yield _sse("phase", "Checking your answer")
+                elif node_name == "check_answer" and last is not None and last.__class__.__name__ == "HumanMessage":
+                    # The judge asked for a better answer — a new one will be generated.
+                    yield _sse("phase", "Regenerating a better answer")
+            continue
+
+        message_chunk, metadata = payload
         node = metadata.get("langgraph_node")
         label = NODE_LABELS.get(node, "Thinking")
 
@@ -73,6 +96,10 @@ async def stream_chat_response(text: str, thread_id: str, kb_id: str):
         # one was already streamed. Flush the original, then tell the client to
         # clear the bubble before streaming the corrected answer.
         if node == "check_answer":
+            if message_chunk.__class__.__name__ == "HumanMessage":
+                # Retry prompt injected by the judge — handled via the "updates"
+                # stream above; never display this internal message.
+                continue
             if not isinstance(message_chunk, AIMessageChunk) or not message_chunk.content:
                 continue
             if buffer and not has_tool_call:

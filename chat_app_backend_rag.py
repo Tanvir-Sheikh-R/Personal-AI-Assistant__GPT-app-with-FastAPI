@@ -23,6 +23,8 @@ llm = ChatGroq(model='openai/gpt-oss-20b', temperature=0.2)
 llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.1, disable_streaming=True)
 
 
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 # ********************Embedding**********************
 EMBED_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hf_cache")

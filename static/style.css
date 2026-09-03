@@ -341,6 +341,7 @@ button { font-family: inherit; }
   min-width: 0;
 }
 
+
 .message.assistant .avatar {
   flex-shrink: 0;
   width: 30px;
@@ -664,3 +665,27 @@ button { font-family: inherit; }
   .message { max-width: 92%; }
   .message.assistant { max-width: 96%; }
 }
+
+/* Streaming phase indicator (e.g. "Checking your answer…") */
+.stream-status {
+  position: absolute;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 0.35rem 0.95rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 20;
+  animation: pulse 1.3s ease-in-out infinite;
+}
+.stream-status[hidden] { display: none; }
