@@ -36,6 +36,7 @@ Thumbs.db
 graph.ipynb
 
 .dockerignore
+Dockerfile
 
 .hf_cache/
 hf_cache/
