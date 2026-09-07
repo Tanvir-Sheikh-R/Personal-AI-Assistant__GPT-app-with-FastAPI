@@ -479,6 +479,9 @@ button { font-family: inherit; }
   max-width: 100%;
   margin: 0.5rem 0 0.75rem;
 }
+.table-scroll table {
+  margin: 0; /* avoid double margin now that the wrapper has its own */
+}
 .message.assistant .bubble table {
   border-collapse: collapse;
   font-size: 0.9em;

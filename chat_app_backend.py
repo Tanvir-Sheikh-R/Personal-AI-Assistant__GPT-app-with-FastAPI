@@ -1,3 +1,5 @@
+import os
+
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
 from typing import TypedDict, Annotated
@@ -24,6 +26,8 @@ tools = [rag_tool, calculator, web_search]
 # Plain (non-tool-bound) model used for cheap one-off calls like title generation.
 llm = MODEL_CHAIN[0]
 MAX_RETRIES = 2
+
+os.environ["USE_TF"] = "0"
 
 def get_summary_for_chatHead(user: str) -> str:
     prompt = f"""Generate a short, descriptive title for this conversation based on the user's message below.
@@ -60,6 +64,7 @@ def _check_answer(question: str, answer: str) -> AnswerCheck:
 
             Judge whether the answer is relevant and actually responds to the question.
             Be strict but fair.
+            Respond with a JSON object matching this schema: {{"is_relevant": true, "reason": "..."}}
         """,
         input_variables=['question', 'answer']
     )
@@ -131,20 +136,28 @@ def chat_message(state: MessageState):
 graph = StateGraph(MessageState)
 graph.add_node('chat_message', chat_message)
 graph.add_node('tools', ToolNode(tools, messages_key="message"))
-graph.add_node('check_answer', check_answer_node)
+# graph.add_node('check_answer', check_answer_node)
 
 graph.add_edge(START, 'chat_message')
 graph.add_conditional_edges(
     "chat_message",
     partial(tools_condition, messages_key="message"),
-    {"tools": "tools", END: "check_answer"},
+    {"tools": "tools", "__end__": END},
 )
 graph.add_edge('tools', 'chat_message')
 
-graph.add_conditional_edges(
-    'check_answer',
-    route_after_check,
-    {"retry": "chat_message", "end": END},
-)
+# graph.add_conditional_edges(
+#     'check_answer',
+#     route_after_check,
+#     {"retry": "chat_message", "end": END},
+# )
 checkpointer = InMemorySaver()
 chat = graph.compile(checkpointer=checkpointer)
+
+
+
+# from IPython.display import Image, display
+# app = graph.compile()
+# app.get_graph().print_ascii()
+
+# print(display(Image(app.get_graph().draw_mermaid_png())))

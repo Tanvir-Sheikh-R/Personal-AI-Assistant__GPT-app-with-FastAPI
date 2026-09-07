@@ -178,6 +178,17 @@ if (window.marked) {
   marked.use({ extensions: [mathBlock, mathInline], renderer: { code: codeRenderer } });
 }
 
+
+// function normalizeLatexDelimiters(text) {
+//   // Some models default to \[ \] / \( \) despite instructions not to use LaTeX.
+//   // Convert them to the $ $$ delimiters our marked extensions actually handle,
+//   // so math still renders correctly instead of leaking raw LaTeX source.
+//   return text
+//     .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => `$$${expr}$$`)
+//     .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => `$${expr}$`);
+// }
+
+
 // Render assistant text as Markdown (falls back to plain text if marked is
 // unavailable or the text is empty).
 function renderBubble(el, text) {
@@ -185,6 +196,8 @@ function renderBubble(el, text) {
     const cleanedText = text
       .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
+      .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => `$$${expr}$$`)
+      .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => `$${expr}$`)
       .trim();
     // Wrap each table in its own horizontal-scroll container so only tables
     // that overflow scroll sideways — the conversation itself does not.
@@ -545,7 +558,18 @@ form.addEventListener("submit", async (e) => {
 
   // Let the model know documents were just attached, so it uses the RAG tool
   // (the bubble itself shows the clean text + attachment cards).
-  const chatText = filenames.length ? `Attached files: ${filenames.join(", ")}\n\n${text}` : text;
+  // const chatText = filenames.length ? `Attached files: ${filenames.join(", ")}\n\n${text}` : text;
+  let hasIndexedDocs = false;
+
+  // ...inside the send handler, after a successful upload:
+  if (filenames.length) hasIndexedDocs = true;
+
+  const chatText = filenames.length
+    ? `Attached files: ${filenames.join(", ")}\n\n${text}`
+    : hasIndexedDocs
+      ? `[Documents are available in this conversation's knowledge base — use document search if relevant.]\n\n${text}`
+      : text;
+
   const body = new URLSearchParams({ text: chatText, thread_id: threadId, kb_id: kbId });
 
   let res;

@@ -8,6 +8,7 @@ MODEL_CHAIN = [
     ChatGroq(model='openai/gpt-oss-120b', temperature=0.2),
     ChatGroq(model='openai/gpt-oss-20b', temperature=0.2),
     ChatGroq(model='qwen/qwen3.6-27b', temperature=0.2),
+    ChatGroq(model='qwen/qwen3.8-27b', temperature=0.2),
 ]
 
 

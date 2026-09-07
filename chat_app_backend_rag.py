@@ -1,4 +1,3 @@
-
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -12,23 +11,26 @@ from langchain_chroma import Chroma
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings, embeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 import warnings
 import os
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain_community")
 # print('after worning')
+os.environ["USE_TF"] = "0"
 
 load_dotenv()
-llm = ChatGroq(model='openai/gpt-oss-20b', temperature=0.2)
-llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.1, disable_streaming=True)
+llm = ChatGroq(model='openai/gpt-oss-120b', temperature=0.2)
+llm_structured = ChatGroq(model='qwen/qwen3.8-27b', temperature=0.1, disable_streaming=True)
 
 
-os.environ["HF_HUB_OFFLINE"] = "1"
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
+# os.environ["HF_HUB_OFFLINE"] = "1"
+# os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 # ********************Embedding**********************
 EMBED_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hf_cache")
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBED_MODEL = "BAAI/bge-large-en-v1.5"
 
 _embeddings_instance = None
 _vectorstore_cache = {}
@@ -37,9 +39,12 @@ _vectorstore_cache = {}
 def _get_embeddings() -> HuggingFaceEmbeddings:
     global _embeddings_instance
     if _embeddings_instance is None:
+        
         _embeddings_instance = HuggingFaceEmbeddings(
             model_name=EMBED_MODEL,
-            cache_folder=EMBED_CACHE
+            cache_folder=EMBED_CACHE,
+            model_kwargs={"device": "cuda"},
+            encode_kwargs={"normalize_embeddings": True, "batch_size": 32},
         )
     return _embeddings_instance
 

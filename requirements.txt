@@ -19,3 +19,5 @@ sentence-transformers
 docx2txt
 pypdf
 docker
+asyncio
+grandalf

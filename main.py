@@ -1,5 +1,17 @@
+import os
+import warnings
+import logging
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["USE_TF"] = "0"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+
+
 from pathlib import Path
 import time
+import asyncio
 
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -11,6 +23,7 @@ from chat_app_backend_rag import add_documents_to_store, clear_collection
 
 # Use absolute paths derived from this file so the app works regardless of the
 # directory uvicorn is started from (relative paths were breaking upload/static).
+
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / ".uploaded_files"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -44,22 +57,14 @@ def _sse(event: str, data: str) -> str:
     safe = data.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n")
     return f"event: {event}\ndata: {safe}\n\n"
 
-
 async def stream_chat_response(text: str, thread_id: str, kb_id: str):
     config = {"configurable": {"thread_id": thread_id}}
 
-    buffer = ""
+    buffer = ""          # accumulates the CURRENT attempt's answer — never sent live
+    final_answer = None  # set once check_answer approves (or gives up after retries)
     current_id = None
     has_tool_call = False
     last_label = None
-    correction = False  # True once a check_answer replacement starts streaming
-    last_flush = time.monotonic()
-
-    def should_flush():
-        # Stream incrementally: flush as soon as enough characters accumulated
-        # or enough time passed, so the client sees a smooth typewriter effect
-        # without a per-token event storm.
-        return bool(buffer) and (len(buffer) >= 12 or time.monotonic() - last_flush >= 0.04)
 
     async for kind, payload in chat.astream(
         {"message": [HumanMessage(text)], "kb_id": kb_id},
@@ -67,91 +72,63 @@ async def stream_chat_response(text: str, thread_id: str, kb_id: str):
         stream_mode=["messages", "updates"],
     ):
         if kind != "messages":
-            # Flush any throttled answer text first, so phase markers always
-            # arrive AFTER the full answer (never interleaved mid-sentence).
-            if buffer and not has_tool_call:
-                yield _sse("token", buffer)
-                buffer = ""
-                has_tool_call = False
-                last_flush = time.monotonic()
-            # "updates": a node just finished. Use it to tell the user what is
-            # happening during the otherwise-silent LLM pauses.
+            # A node just finished — use it to detect retries / approval, and to
+            # surface phase text during the silent generation/check gaps.
             for node_name, state_update in payload.items():
                 msgs = state_update.get("message") or []
                 last = msgs[-1] if msgs else None
+
                 if node_name == "chat_message" and last is not None and not getattr(last, "tool_calls", None):
-                    # The final (non-tool) answer is done — the relevance judge
-                    # runs next, which takes a few silent seconds.
                     yield _sse("phase", "Checking your answer")
-                elif node_name == "check_answer" and last is not None and last.__class__.__name__ == "HumanMessage":
-                    # The judge asked for a better answer — a new one will be generated.
-                    yield _sse("phase", "Regenerating a better answer")
+
+                elif node_name == "check_answer":
+                    if last is not None and last.__class__.__name__ == "HumanMessage":
+                        # Judge rejected it — discard this attempt's buffer entirely.
+                        buffer = ""
+                        yield _sse("phase", "Regenerating a better answer")
+                    elif last is not None and last.__class__.__name__ == "AIMessage":
+                        # Retries exhausted — this replacement message IS the final answer.
+                        final_answer = last.content
+                    else:
+                        # Empty message list — judge approved the current buffer as-is.
+                        final_answer = buffer
             continue
 
+        # kind == "messages": token-level chunks. Only chat_message chunks matter —
+        # we just accumulate them silently, we never yield "token" here.
         message_chunk, metadata = payload
         node = metadata.get("langgraph_node")
-        label = NODE_LABELS.get(node, "Thinking")
 
-        # The check_answer node may append a replacement answer after the first
-        # one was already streamed. Flush the original, then tell the client to
-        # clear the bubble before streaming the corrected answer.
-        if node == "check_answer":
-            if message_chunk.__class__.__name__ == "HumanMessage":
-                # Retry prompt injected by the judge — handled via the "updates"
-                # stream above; never display this internal message.
-                continue
-            if not isinstance(message_chunk, AIMessageChunk) or not message_chunk.content:
-                continue
-            if buffer and not has_tool_call:
-                yield _sse("token", buffer)
-                buffer = ""
-                has_tool_call = False
-            if not correction:
-                correction = True
-                yield _sse("clear", "")
-            yield _sse("token", message_chunk.content)
+        if node != "chat_message":
+            continue
+        if not isinstance(message_chunk, AIMessageChunk):
             continue
 
-        # Non-answer nodes (e.g. the ToolNode) produce a chunk per token, which
-        # would otherwise flood the client with repeated "status" events. Emit
-        # a status event only when the active phase actually changes.
-        if node != "chat_message":
+        if message_chunk.id != current_id:
+            buffer = ""
+            has_tool_call = False
+            current_id = message_chunk.id
+
+        if message_chunk.tool_call_chunks:
+            has_tool_call = True
+            label = "Using tools"
             if label != last_label:
                 yield _sse("status", label)
                 last_label = label
             continue
 
-        if not isinstance(message_chunk, AIMessageChunk):
-            continue
-
-        if message_chunk.id != current_id:
-            # A new message group started — flush the previous one, but only if
-            # it turned out NOT to be a tool call (tool-call preambles are discarded).
-            if buffer and not has_tool_call:
-                yield _sse("token", buffer)
-            buffer = ""
-            has_tool_call = False
-            current_id = message_chunk.id
-            last_flush = time.monotonic()
-
-        if message_chunk.tool_call_chunks:
-            # This group is a tool call — its buffered content (if any) is never shown.
-            has_tool_call = True
-
-        if message_chunk.content:
+        if message_chunk.content and not has_tool_call:
             buffer += message_chunk.content
-            if not has_tool_call and should_flush():
-                yield _sse("token", buffer)
-                buffer = ""
-                last_flush = time.monotonic()
-        elif label != last_label:
-            # Still "Thinking" inside the answer node before any content arrives.
-            yield _sse("status", label)
-            last_label = label
+        elif last_label != "Thinking":
+            yield _sse("status", "Thinking")
+            last_label = "Thinking"
 
-    # Flush whatever's left once the stream ends (the final answer's group).
-    if buffer and not has_tool_call:
-        yield _sse("token", buffer)
+    # Graph fully finished. Stream out the approved answer with a simulated
+    # typewriter effect (generation already happened — this is just presentation).
+    text_to_send = final_answer if final_answer is not None else buffer
+    for i in range(0, len(text_to_send), 12):
+        yield _sse("token", text_to_send[i:i + 12])
+        await asyncio.sleep(0.02)
 
     yield _sse("done", "")
 
