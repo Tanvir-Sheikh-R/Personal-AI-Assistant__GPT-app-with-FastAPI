@@ -34,4 +34,8 @@ vectorstore/
 Thumbs.db
 
 graph.ipynb
+
 .dockerignore
+
+.hf_cache/
+hf_cache/

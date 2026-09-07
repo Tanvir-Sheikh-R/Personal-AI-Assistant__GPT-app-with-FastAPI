@@ -1,9 +1,32 @@
+# fastapi
+# uvicorn[standard]
+# python-multipart
+# langgraph
+# langgraph-checkpoint-sqlite
+# aiosqlite
+# langchain
+# langchain-groq
+# langchain-community
+# langchain-chroma
+# langchain-huggingface
+# langchain-text-splitters
+# groq
+# pydantic
+# python-dotenv
+# sympy
+# ddgs
+# sentence-transformers
+# docx2txt
+# pypdf
+# docker
+# asyncio
+# grandalf
+
+# _____________Shorted_requirements_____________
 fastapi
 uvicorn[standard]
 python-multipart
 langgraph
-langgraph-checkpoint-sqlite
-aiosqlite
 langchain
 langchain-groq
 langchain-community
@@ -15,9 +38,10 @@ pydantic
 python-dotenv
 sympy
 ddgs
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
 sentence-transformers
 docx2txt
 pypdf
+pytz
 docker
-asyncio
-grandalf
