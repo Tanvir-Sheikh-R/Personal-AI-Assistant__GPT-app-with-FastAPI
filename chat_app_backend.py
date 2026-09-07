@@ -15,9 +15,16 @@ from llm_router import invoke_with_fallback, MODEL_CHAIN
 from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
 from chat_app_backend_rag import llm_structured
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
-current_date = datetime.now().strftime("%B %d, %Y")  # e.g. "March 15, 2023"
+import pytz
+
+# Set the timezone to Bangladesh
+bd_timezone = pytz.timezone('Asia/Dhaka')
+
+# Get the current time in that timezone
+current_date = datetime.now(bd_timezone).strftime("%B %d, %Y")  # e.g. "March 15, 2023"
+
 
 load_dotenv()
 
