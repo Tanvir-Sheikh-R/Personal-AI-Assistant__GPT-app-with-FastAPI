@@ -441,9 +441,28 @@ const input = document.getElementById("chat-input");
 const fileInput = document.getElementById("file-input");
 const attachBtn = document.getElementById("attach-btn");
 const attachChipsEl = document.getElementById("attach-chips");
+const sendBtn = document.getElementById("send-btn");
 
 let activeStreamController = null;
 let pendingFiles = [];
+let isStreaming = false;
+
+// The send button is a single button that stays in place, in the same colour —
+// only its icon (and its action) changes: a send arrow normally, a stop square
+// while the model is generating.
+const SEND_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">' +
+  '<path d="M12 4l7 8h-4v8h-6v-8H5l7-8z" fill="currentColor" /></svg>';
+const STOP_ICON =
+  '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+  '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" /></svg>';
+
+function setStreaming(streaming) {
+  isStreaming = streaming;
+  sendBtn.innerHTML = streaming ? STOP_ICON : SEND_ICON;
+  sendBtn.title = streaming ? "Stop generating" : "Send";
+  sendBtn.setAttribute("aria-label", streaming ? "Stop generating" : "Send");
+}
 
 // Auto-grow the composer textarea so multi-line messages are comfortable.
 function autoResize() {
@@ -494,6 +513,14 @@ fileInput.addEventListener("change", () => {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+
+  // While a response is streaming, the button is a stop button: a click (or
+  // Enter) here cancels the current generation instead of sending a new message.
+  if (isStreaming) {
+    if (activeStreamController) activeStreamController.abort();
+    return;
+  }
+
   const text = input.value.trim();
   const hasFiles = pendingFiles.length > 0;
   if (!text && !hasFiles) return;
@@ -517,8 +544,8 @@ form.addEventListener("submit", async (e) => {
   // Show the user's message (text + attached docs) right away.
   const userDiv = appendUserMessage(text, filenames, null);
 
-  // While attached files are being indexed, show a status label styled like the
-  // other node labels ("Thinking…", "Using tools…") so the user sees progress.
+  // While attached files are being indexed, show a status placeholder so the
+  // user knows the assistant is working.
   const processingText = filenames.length === 1 ? "Processing file..." : "Processing files...";
   let assistantBubble = null;
   if (filesToUpload.length) {
@@ -572,87 +599,123 @@ form.addEventListener("submit", async (e) => {
 
   const body = new URLSearchParams({ text: chatText, thread_id: threadId, kb_id: kbId });
 
-  let res;
+  // While we're generating, the send button's icon becomes a stop square.
+  setStreaming(true);
+
+  let stopped = false;
   try {
-    res = await fetch("/chat", { method: "POST", body, signal });
-  } catch (err) {
-    if (err.name === "AbortError") return;
-    throw err;
-  }
-
-  // Non-200 (e.g. 422 validation error): show the server's detail instead of
-  // hanging on "Thinking...".
-  if (!res.ok) {
-    let detail = `Request failed (HTTP ${res.status})`;
+    let res;
     try {
-      const errData = await res.json();
-      if (errData && errData.detail) {
-        detail = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
-      }
-    } catch (_) {
-      /* response wasn't JSON — keep the generic message */
+      res = await fetch("/chat", { method: "POST", body, signal });
+    } catch (err) {
+      if (err.name === "AbortError") return; // finally resets the button below
+      throw err;
     }
-    assistantBubble.classList.remove("status-label");
-    assistantBubble.textContent = `Something went wrong sending your message.\n${detail}`;
-    return;
-  }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let answer = "";
-
-  while (true) {
-    if (signal.aborted) return; // user switched threads mid-stream — stop writing here
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    // SSE events are separated by a blank line.
-    const events = buffer.split("\n\n");
-    buffer = events.pop();
-
-    for (const raw of events) {
-      const eventLine = raw.split("\n").find((l) => l.startsWith("event:"));
-      const dataLine = raw.split("\n").find((l) => l.startsWith("data:"));
-      if (!eventLine || !dataLine) continue;
-
-      const event = eventLine.replace("event:", "").trim();
-      const data = dataLine.slice(6).replace(/\r$/, "").replace(/\\n/g, "\n");
-
-      if (event === "clear") {
-        // A check_answer correction replaces the previously streamed answer.
-        answer = "";
-        assistantBubble.classList.remove("status-label");
-        assistantBubble.textContent = "";
-        hideStreamStatus();
-      } else if (event === "token") {
-        assistantBubble.classList.remove("status-label");
-        answer += data;
-        renderBubble(assistantBubble, answer);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-        hideStreamStatus();
-      } else if (event === "phase") {
-        // Post-answer LLM phase (relevance check / regenerating) — show it so
-        // the user knows the model is still working.
-        if (data) {
-          streamStatusEl.textContent = `${data}…`;
-          streamStatusEl.hidden = false;
+    // Non-200 (e.g. 422 validation error): surface the server's detail instead
+    // of a blank assistant bubble.
+    if (!res.ok) {
+      let detail = `Request failed (HTTP ${res.status})`;
+      try {
+        const errData = await res.json();
+        if (errData && errData.detail) {
+          detail = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
         }
-      } else if (event === "status") {
-        if (!answer) assistantBubble.textContent = `${data}...`;
-      } else if (event === "done") {
-        hideStreamStatus();
+      } catch (_) {
+        /* response wasn't JSON — keep the generic message */
+      }
+      assistantBubble.classList.remove("status-label");
+      assistantBubble.textContent = `Something went wrong sending your message.\n${detail}`;
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let answer = "";
+
+    // When generation is stopped, clear any lingering status label ("Thinking",
+    // "Using tools", "Processing files…"). If no real content was streamed yet,
+    // the placeholder bubble is removed entirely so nothing stays on screen.
+    function clearStatusOnStop() {
+      if (!assistantBubble) { hideStreamStatus(); return; }
+      const hasContent = answer && answer.trim();
+      if (!hasContent) {
+        if (assistantBubble.parentElement) assistantBubble.parentElement.remove();
+        assistantBubble = null;
+      } else {
+        assistantBubble.classList.remove("status-label");
+        renderBubble(assistantBubble, answer);
+      }
+      hideStreamStatus();
+    }
+
+    try {
+      while (true) {
+        if (signal.aborted) { stopped = true; clearStatusOnStop(); break; }
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE events are separated by a blank line.
+        const events = buffer.split("\n\n");
+        buffer = events.pop();
+
+        for (const raw of events) {
+          const eventLine = raw.split("\n").find((l) => l.startsWith("event:"));
+          const dataLine = raw.split("\n").find((l) => l.startsWith("data:"));
+          if (!eventLine || !dataLine) continue;
+
+          const event = eventLine.replace("event:", "").trim();
+          const data = dataLine.slice(6).replace(/\r$/, "").replace(/\\n/g, "\n");
+
+          if (event === "clear") {
+            // A check_answer correction replaces the previously streamed answer.
+            answer = "";
+            assistantBubble.classList.remove("status-label");
+            renderBubble(assistantBubble, "");
+            hideStreamStatus();
+          } else if (event === "token") {
+            assistantBubble.classList.remove("status-label");
+            answer += data;
+            renderBubble(assistantBubble, answer);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            hideStreamStatus();
+          } else if (event === "phase") {
+            // Post-answer LLM phase (relevance check / regenerating) — show it so
+            // the user knows the model is still working.
+            if (data) {
+              streamStatusEl.textContent = `${data}…`;
+              streamStatusEl.hidden = false;
+            }
+          } else if (event === "status") {
+            if (!answer) assistantBubble.textContent = `${data}...`;
+          } else if (event === "done") {
+            hideStreamStatus();
+          }
+        }
+      }
+    } catch (err) {
+      // Aborting the fetch throws AbortError here — that's the Stop button (or a
+      // thread switch) cancelling the stream. The partial answer (if any) stays.
+      if (err.name === "AbortError") {
+        stopped = true;
+        clearStatusOnStop();
+      } else {
+        throw err;
       }
     }
-  }
 
-  if (isFirstMessage) {
-    const titleForm = new URLSearchParams({ first_message: text });
-    const titleRes = await fetch(`/threads/${threadId}/title`, { method: "POST", body: titleForm });
-    const titleData = await titleRes.json();
-    updateThreadTitle(threadId, titleData.title);
-    renderThreadList();
+    if (isFirstMessage) {
+      const titleForm = new URLSearchParams({ first_message: text || `Uploaded: ${filenames.join(", ")}` });
+      const titleRes = await fetch(`/threads/${threadId}/title`, { method: "POST", body: titleForm });
+      const titleData = await titleRes.json();
+      updateThreadTitle(threadId, titleData.title);
+      renderThreadList();
+    }
+  } finally {
+    setStreaming(false);
+    hideStreamStatus();
   }
 });
 

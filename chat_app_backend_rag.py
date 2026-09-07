@@ -43,7 +43,7 @@ def _get_embeddings() -> HuggingFaceEmbeddings:
         _embeddings_instance = HuggingFaceEmbeddings(
             model_name=EMBED_MODEL,
             cache_folder=EMBED_CACHE,
-            model_kwargs={"device": "cuda"},
+            model_kwargs={"device": "cpu"},
             encode_kwargs={"normalize_embeddings": True, "batch_size": 32},
         )
     return _embeddings_instance

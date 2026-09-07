@@ -10,8 +10,6 @@ logging.getLogger("tensorflow").setLevel(logging.ERROR)
 
 
 from pathlib import Path
-import time
-import asyncio
 
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -28,6 +26,9 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / ".uploaded_files"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+# Status labels shown while a node runs. They are streamed to the client as
+# `status` events so the UI can tell the user the assistant is working. They are
+# cleared from the UI as soon as content starts streaming (or the user stops).
 NODE_LABELS = {
     "chat_message": "Thinking",
     "tools": "Using tools",
@@ -58,79 +59,74 @@ def _sse(event: str, data: str) -> str:
     return f"event: {event}\ndata: {safe}\n\n"
 
 async def stream_chat_response(text: str, thread_id: str, kb_id: str):
+    """Stream the assistant reply token-by-token in real time.
+
+    We emit ``token`` events as each content chunk arrives (while the LLM is still
+    generating), so the browser can render text immediately and a Stop button can
+    genuinely cancel the model mid-generation. When the client disconnects (Stop
+    pressed, thread switched, or tab closed) the inner LangGraph stream is closed
+    so the LLM call is aborted instead of continuing to burn tokens in the
+    background.
+    """
     config = {"configurable": {"thread_id": thread_id}}
-
-    buffer = ""          # accumulates the CURRENT attempt's answer — never sent live
-    final_answer = None  # set once check_answer approves (or gives up after retries)
-    current_id = None
-    has_tool_call = False
-    last_label = None
-
-    async for kind, payload in chat.astream(
+    iterator = chat.astream(
         {"message": [HumanMessage(text)], "kb_id": kb_id},
         config=config,
         stream_mode=["messages", "updates"],
-    ):
-        if kind != "messages":
-            # A node just finished — use it to detect retries / approval, and to
-            # surface phase text during the silent generation/check gaps.
-            for node_name, state_update in payload.items():
-                msgs = state_update.get("message") or []
-                last = msgs[-1] if msgs else None
+    )
 
-                if node_name == "chat_message" and last is not None and not getattr(last, "tool_calls", None):
-                    yield _sse("phase", "Checking your answer")
+    current_id = None
+    has_tool_call = False
+    last_label = None
+    completed = False
 
-                elif node_name == "check_answer":
-                    if last is not None and last.__class__.__name__ == "HumanMessage":
-                        # Judge rejected it — discard this attempt's buffer entirely.
-                        buffer = ""
-                        yield _sse("phase", "Regenerating a better answer")
-                    elif last is not None and last.__class__.__name__ == "AIMessage":
-                        # Retries exhausted — this replacement message IS the final answer.
-                        final_answer = last.content
-                    else:
-                        # Empty message list — judge approved the current buffer as-is.
-                        final_answer = buffer
-            continue
+    try:
+        while True:
+            try:
+                kind, payload = await anext(iterator)
+            except StopAsyncIteration:
+                completed = True
+                break
 
-        # kind == "messages": token-level chunks. Only chat_message chunks matter —
-        # we just accumulate them silently, we never yield "token" here.
-        message_chunk, metadata = payload
-        node = metadata.get("langgraph_node")
+            if kind != "messages":
+                continue
 
-        if node != "chat_message":
-            continue
-        if not isinstance(message_chunk, AIMessageChunk):
-            continue
+            # kind == "messages": token-level chunks from the running graph.
+            message_chunk, metadata = payload
+            node = metadata.get("langgraph_node")
+            if node != "chat_message":
+                continue
+            if not isinstance(message_chunk, AIMessageChunk):
+                continue
 
-        if message_chunk.id != current_id:
-            buffer = ""
-            has_tool_call = False
-            current_id = message_chunk.id
+            if message_chunk.id != current_id:
+                current_id = message_chunk.id
+                has_tool_call = False
 
-        if message_chunk.tool_call_chunks:
-            has_tool_call = True
-            label = "Using tools"
-            if label != last_label:
-                yield _sse("status", label)
-                last_label = label
-            continue
+            if message_chunk.tool_call_chunks:
+                has_tool_call = True
+                label = NODE_LABELS["tools"]
+                if last_label != label:
+                    yield _sse("status", label)
+                    last_label = label
+                continue
 
-        if message_chunk.content and not has_tool_call:
-            buffer += message_chunk.content
-        elif last_label != "Thinking":
-            yield _sse("status", "Thinking")
-            last_label = "Thinking"
+            if message_chunk.content and not has_tool_call:
+                label = NODE_LABELS["chat_message"]
+                if last_label != label:
+                    yield _sse("status", label)
+                    last_label = label
+                yield _sse("token", message_chunk.content)
+    finally:
+        # Client disconnected (or the generator was closed) — cancel the model call
+        # so we stop spending tokens on a response nobody is reading.
+        try:
+            await iterator.aclose()
+        except Exception:
+            pass
 
-    # Graph fully finished. Stream out the approved answer with a simulated
-    # typewriter effect (generation already happened — this is just presentation).
-    text_to_send = final_answer if final_answer is not None else buffer
-    for i in range(0, len(text_to_send), 12):
-        yield _sse("token", text_to_send[i:i + 12])
-        await asyncio.sleep(0.02)
-
-    yield _sse("done", "")
+    if completed:
+        yield _sse("done", "")
 
 
 @app.post("/chat")
