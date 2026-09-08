@@ -29,8 +29,8 @@ os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 # ********************Embedding**********************
 EMBED_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hf_cache")
-# EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-EMBED_MODEL = "BAAI/bge-large-en-v1.5"
+EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# EMBED_MODEL = "BAAI/bge-large-en-v1.5"
 
 _embeddings_instance = None
 _vectorstore_cache = {}
