@@ -34,7 +34,7 @@ NODE_LABELS = {
     "tools": "Using tools",
 }
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None)
 
 
 @app.middleware("http")
@@ -225,3 +225,4 @@ async def reset_client(kb_id: str = Form(...)):
 
 app.mount("/src", StaticFiles(directory=str(BASE_DIR / "src")), name="src")
 app.mount("/", StaticFiles(directory=str(BASE_DIR / "static"), html=True), name="static")
+

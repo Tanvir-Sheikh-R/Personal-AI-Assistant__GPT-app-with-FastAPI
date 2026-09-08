@@ -21,7 +21,7 @@ os.environ["USE_TF"] = "0"
 
 load_dotenv()
 llm = ChatGroq(model='openai/gpt-oss-120b', temperature=0.2)
-llm_structured = ChatGroq(model='qwen/qwen3.8-27b', temperature=0.1, disable_streaming=True)
+llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.1, disable_streaming=True, max_tokens=512)
 
 
 os.environ["HF_HUB_OFFLINE"] = "1"
