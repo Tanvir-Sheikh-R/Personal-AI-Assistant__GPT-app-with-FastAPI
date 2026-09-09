@@ -45,3 +45,4 @@ docx2txt
 pypdf
 pytz
 docker
+rank_bm25

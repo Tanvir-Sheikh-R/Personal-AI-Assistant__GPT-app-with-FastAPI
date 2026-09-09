@@ -73,29 +73,46 @@ def calculator(expression: str) -> str:
 @tool
 def rag_tool(query: str, state: Annotated[dict, InjectedState]) -> str:
 
-    """Search and retrieve relevant information from the user's uploaded documents 
-    or knowledge base.
+    """Retrieve relevant passages from the user's uploaded documents to answer
+    questions about their specific content — facts, data, names, dates,
+    numbers, or details that live in those files rather than in general
+    knowledge. This is the only way to access document content; you cannot
+    see uploaded files directly.
 
-    Use this tool whenever the user asks a question that could be answered by 
-    specific facts, data, definitions, or content that may exist in their documents 
-    — including questions about people, projects, numbers, dates, or anything not 
-    considered common/general knowledge.
+    WHEN TO CALL:
+    Call this tool exactly once when the user's question could plausibly be
+    answered by their uploaded documents — including questions about people,
+    projects, figures, or specifics you would otherwise have to guess at.
 
-    Do NOT use this tool for:
-    - Greetings or small talk (e.g. "hi", "how are you")
-    - Simple math or logic questions
-    - General knowledge the model already knows confidently
-    - Follow-up questions that are just clarifying tone/formatting, not facts
+    WHEN NOT TO CALL:
+    - Greetings, small talk, or conversational filler
+    - Math, logic, or calculations (use the calculator tool instead)
+    - General knowledge you already know with confidence
+    - Follow-up questions about tone, formatting, or phrasing rather than facts
+    - Any question already answered earlier in this conversation
+
+    CALL LIMIT — READ CAREFULLY:
+    Call this tool at most once per user question. If the result indicates no
+    relevant documents were found, that is a final result, not a signal to
+    retry. Do not call this tool again with a rephrased, broadened, or
+    alternate query in the same turn. Instead, immediately answer using your
+    own general knowledge and clearly tell the user their documents did not
+    contain the relevant information. Repeated calls for the same question
+    waste time and essentially never surface something a well-formed first
+    query missed.
 
     Args:
-        query: A clear, standalone search query representing what the user wants 
-        to find. Rephrase vague or pronoun-heavy user questions into a specific, 
-        self-contained query (e.g., convert "what about its pricing?" into 
-        "product pricing details").
+        query: A precise, standalone search query capturing exactly what the
+            user wants to find — not the user's raw message. Resolve pronouns
+            and vague references into concrete terms (e.g. "what about its
+            pricing?" becomes "product pricing details"). Keep it focused on
+            one specific piece of information; do not bundle multiple
+            unrelated questions into one query.
 
     Returns:
-        A string containing the most relevant retrieved passages, or a message 
-        indicating no relevant documents were found.
+        The most relevant retrieved passages with source attribution, or an
+        explicit message stating no relevant documents were found — treat the
+        latter as final, not as a prompt to try again.
     """
 
 

@@ -32,7 +32,7 @@ tools = [rag_tool, calculator, web_search]
 
 # Plain (non-tool-bound) model used for cheap one-off calls like title generation.
 llm = MODEL_CHAIN[0]
-MAX_RETRIES = 2
+MAX_RETRIES = 1
 
 os.environ["USE_TF"] = "0"
 
@@ -59,6 +59,7 @@ class MessageState(TypedDict):
     message: Annotated[list[BaseMessage], add_messages]
     kb_id: str
     retry_count: int
+    rag_call_count: int
 
 
 def _check_answer(question: str, answer: str) -> AnswerCheck:

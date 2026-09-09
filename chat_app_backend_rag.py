@@ -20,8 +20,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain
 os.environ["USE_TF"] = "0"
 
 load_dotenv()
-llm = ChatGroq(model='openai/gpt-oss-120b', temperature=0.2)
-llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.1, disable_streaming=True, max_tokens=512)
+llm = ChatGroq(model='openai/gpt-oss-20b', temperature=0.2)
+llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.0, disable_streaming=True, max_tokens=512)
 
 
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -100,9 +100,19 @@ def _load_and_split(file_paths: list[str]):
             )
         all_docs.extend(docs)
 
+    total_chars = sum(len(d.page_content or "") for d in all_docs)
+
+    # Scale chunk size with document length
+    if total_chars < 3000:
+        chunk_size, chunk_overlap = 400, 80     # short doc — smaller, precise chunks
+    elif total_chars < 20000:
+        chunk_size, chunk_overlap = 800, 150    # your current default
+    else:
+        chunk_size, chunk_overlap = 1200, 300   # long doc — bigger chunks, fewer total
+
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=150,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
         separators=["\n\n\n", "\n\n", "\n", "  ", " ", ""],
     )
     return splitter.split_documents(all_docs)
@@ -133,7 +143,7 @@ def save_docs(query, results, suffix=""):
 
 class QueryExpansion(BaseModel):
     queries: list[str] = Field(
-        description="2 more rephrasings or related variations of the original query, "
+        description="1 more rephrasings or related variations of the original query, "
                     "covering different phrasings, synonyms, or angles the user might mean. "
                     "Do not include the original query itself."
     )
@@ -149,7 +159,8 @@ class check_chunk_quality(BaseModel):
 def _expand_query(query: str) -> list[str]:
     expand_prompt = PromptTemplate(
         template="""
-            Generate 2 alternative phrasings of the user's question to improve document retrieval.
+            ## You must respond by calling the QueryExpansion tool with your one rephrasings — do not answer in plain text
+            Generate 1 alternative phrasings of the user's question to improve document retrieval.
             Include synonyms, related terms, and different ways the answer might be phrased in a document.
             Keep each variation short and standalone.
 
@@ -220,7 +231,7 @@ def generate_output(query: str, vector_store):
     seen_ids = set()
     all_results = []
     for q in expanded_queries:
-        for doc in vector_store.max_marginal_relevance_search(query=q, k=3):
+        for doc in vector_store.max_marginal_relevance_search(query=q, k=4):
             key = doc.page_content.strip()
             if key not in seen_ids:
                 seen_ids.add(key)
@@ -233,7 +244,7 @@ def generate_output(query: str, vector_store):
 
 
     if not is_relevant or not relevant_docs:
-        return 'No relevant documents found for the query. Please rephrase your question or upload relevant documents.'
+        return 'No relevant documents were found for this query in the uploaded files. Do not retry the search — answer based on general knowledge or inform the user.'
 
 
     seen = set()
