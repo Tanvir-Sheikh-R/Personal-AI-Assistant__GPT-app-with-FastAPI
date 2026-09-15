@@ -1,12 +1,16 @@
-from langchain_community.tools import DuckDuckGoSearchRun
 from chat_app_backend_rag import generate_output, _get_vectorstore
 from langgraph.prebuilt import InjectedState
 from typing import Annotated
 from langchain.tools import tool
 from sympy import sympify
+from tavily import TavilyClient
+from dotenv import load_dotenv
 
 
-_ddg_search = DuckDuckGoSearchRun()
+load_dotenv()
+
+
+tavily_client = TavilyClient()
 
 @tool
 def web_search(query: str) -> str:
@@ -42,14 +46,32 @@ def web_search(query: str) -> str:
         A string summarizing the top search results.
     """
     try:
-        results = _ddg_search.invoke(query)
-        if not results:
-            return "No relevant search results found."
-        # print(results)
-
-        return results
+        response = tavily_client.search(
+            query=query,
+            max_results=3
+        )
+        print("web tool called")
     except Exception as e:
-        return f"Error performing web search: {e}"
+        return f"Web search failed: {e}"
+
+    parts = []
+
+    if response.get("answer"):
+        parts.append(f"Quick answer: {response['answer']}")
+
+    for i, result in enumerate(response.get("results", []), 1):
+        title = result.get("title", "Untitled")
+        url = result.get("url", "")
+        content = (result.get("content") or "").strip()
+        parts.append(f"[{i}] {title}\n{url}\n{content}")
+
+    if not parts:
+        return "No results found for this query."
+
+    return "\n\n".join(parts)
+
+
+
 
 
 
@@ -67,6 +89,9 @@ def calculator(expression: str) -> str:
         return str(result)
     except Exception as e:
         return f"Error: {e}"
+
+    
+    
 
 
 
