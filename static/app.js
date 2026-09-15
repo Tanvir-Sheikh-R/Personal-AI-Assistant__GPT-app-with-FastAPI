@@ -236,7 +236,7 @@ document.addEventListener("click", (e) => {
         btn.textContent = "Copy";
       }, 1500);
     })
-    .catch(() => {});
+    .catch(() => { });
 });
 
 // True while we're loading an existing thread's history — prevents the hero
@@ -382,18 +382,17 @@ function appendUserMessage(text, filenames, error) {
 // pile up in the sidebar. The active thread is always kept.
 async function pruneStaleThreads(activeId) {
   const list = getThreads();
-  const stale = [];
-  for (const t of list) {
-    if (t.thread_id === activeId) continue;
-    try {
-      const res = await fetch(`/threads/${t.thread_id}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (!data.messages || !data.messages.length) stale.push(t.thread_id);
-    } catch (_) {
-      /* keep the thread if the server is unreachable */
-    }
-  }
+  const results = await Promise.all(
+    list.filter(t => t.thread_id !== activeId).map(async (t) => {
+      try {
+        const res = await fetch(`/threads/${t.thread_id}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return (!data.messages || !data.messages.length) ? t.thread_id : null;
+      } catch { return null; }
+    })
+  );
+  const stale = results.filter(Boolean);
   if (stale.length) {
     saveThreads(getThreads().filter((t) => !stale.includes(t.thread_id)));
     renderThreadList();
@@ -688,9 +687,31 @@ form.addEventListener("submit", async (e) => {
             hideStreamStatus();
           } else if (event === "token") {
             assistantBubble.classList.remove("status-label");
-            answer += data;
-            renderBubble(assistantBubble, answer);
+            answer += data; // Consolidated token addition (removed the duplicate below)
+
+            let renderPending = false;
+            function scheduleRender() {
+              if (renderPending) return;
+              renderPending = true;
+              requestAnimationFrame(() => {
+                renderPending = false;
+                renderBubble(assistantBubble, answer);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              });
+            }
+
+            scheduleRender();
             messagesEl.scrollTop = messagesEl.scrollHeight;
+            hideStreamStatus();
+          } else if (event === "phase") {
+            // Post-answer LLM phase (relevance check / regenerating)
+            if (data) {
+              streamStatusEl.textContent = `${data}…`;
+              streamStatusEl.hidden = false;
+            }
+          } else if (event === "status") {
+            if (!answer) assistantBubble.textContent = `${data}...`;
+          } else if (event === "done") {
             hideStreamStatus();
           } else if (event === "phase") {
             // Post-answer LLM phase (relevance check / regenerating) — show it so

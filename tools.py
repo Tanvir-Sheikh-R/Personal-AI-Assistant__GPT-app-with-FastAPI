@@ -5,7 +5,7 @@ from langchain.tools import tool
 from sympy import sympify
 from tavily import TavilyClient
 from dotenv import load_dotenv
-
+import asyncio
 
 load_dotenv()
 
@@ -96,7 +96,7 @@ def calculator(expression: str) -> str:
 
 
 @tool
-def rag_tool(query: str, state: Annotated[dict, InjectedState]) -> str:
+async def rag_tool(query: str, state: Annotated[dict, InjectedState]) -> str:
 
     """Retrieve relevant passages from the user's uploaded documents to answer
     questions about their specific content — facts, data, names, dates,
@@ -142,4 +142,4 @@ def rag_tool(query: str, state: Annotated[dict, InjectedState]) -> str:
 
 
     vector_store = _get_vectorstore(state.get('kb_id', 'file_embeddings'))
-    return generate_output(query, vector_store)
+    return await generate_output(query, vector_store)
