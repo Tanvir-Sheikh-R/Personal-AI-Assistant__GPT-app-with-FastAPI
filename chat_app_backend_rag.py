@@ -21,7 +21,7 @@ os.environ["USE_TF"] = "0"
 
 load_dotenv()
 llm = ChatGroq(model='openai/gpt-oss-20b', temperature=0.2)
-llm_structured = ChatGroq(model='openai/gpt-oss-120b', temperature=0.0, disable_streaming=True, max_tokens=512)
+llm_structured = ChatGroq(model='qwen/qwen3.8-27b', temperature=0.0, disable_streaming=True, max_tokens=512)
 
 
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -169,7 +169,7 @@ def _expand_query(query: str) -> list[str]:
         input_variables=['query']
     )
     try:
-        output = llm_structured.with_structured_output(QueryExpansion).invoke(
+        output = llm.with_structured_output(QueryExpansion).invoke(
             expand_prompt.format(query=query)
         )
         return [query] + output.queries
@@ -178,7 +178,7 @@ def _expand_query(query: str) -> list[str]:
         return [query]
 
 
-def _generate_relavent_chunks(query: str, results) -> check_chunk_quality:
+def _generate_relavent_chunks(query: str, results) -> tuple[list, bool]:
     if not results:
         return [], False
     
@@ -223,7 +223,6 @@ def _generate_relavent_chunks(query: str, results) -> check_chunk_quality:
     return relevant_docs, output.relevant
 
 
-
 def generate_output(query: str, vector_store):
 
     expanded_queries = _expand_query(query)
@@ -239,13 +238,30 @@ def generate_output(query: str, vector_store):
 
     relevant_docs, is_relevant = _generate_relavent_chunks(query, all_results)
 
-    # save_docs(query, relevant_docs, "after")        # -> remove this after checking
-    # save_docs(query, all_results, "before")         # -> remove this after checking
-
+    if not all_results:
+        return "I couldn't find any content in your uploaded files to search — please make sure a document has been uploaded."
 
     if not is_relevant or not relevant_docs:
-        return 'No relevant documents were found for this query in the uploaded files. Do not retry the search — answer based on general knowledge or inform the user.'
+        # No chunk was judged clearly relevant — hand over everything retrieved
+        # instead of just the last chunk, and flag it clearly so the model
+        # caveats the answer rather than presenting it as a confident match.
+        context_parts = []
+        seen = set()
+        for doc in all_results:
+            key = (doc.page_content or "").strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            source = (doc.metadata or {}).get("source", "document")
+            context_parts.append(f"[Source: {source}]\n{key}")
 
+        joined_context = "\n\n".join(context_parts)
+
+        return (
+            "I couldn't find directly relevant context for your query in the "
+            "knowledge base — here's the closest related answer I could put "
+            f"together:\n\n{joined_context}"
+        )
 
     seen = set()
     context_parts = []

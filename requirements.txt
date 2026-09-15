@@ -37,7 +37,6 @@ groq
 pydantic
 python-dotenv
 sympy
-ddgs
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch
 sentence-transformers
@@ -46,3 +45,4 @@ pypdf
 pytz
 docker
 rank_bm25
+tavily

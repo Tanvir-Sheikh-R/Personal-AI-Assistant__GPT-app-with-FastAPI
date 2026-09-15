@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
 from chat_app_backend_rag import llm_structured
 from datetime import datetime, timedelta, timezone
-
+from langchain.agents import create_agent
 import pytz
 
 # Set the timezone to Bangladesh
@@ -146,6 +146,7 @@ graph.add_node('chat_message', chat_message)
 graph.add_node('tools', ToolNode(tools, messages_key="message"))
 # graph.add_node('check_answer', check_answer_node)
 
+
 graph.add_edge(START, 'chat_message')
 graph.add_conditional_edges(
     "chat_message",
@@ -154,18 +155,19 @@ graph.add_conditional_edges(
 )
 graph.add_edge('tools', 'chat_message')
 
-# graph.add_conditional_edges(
-#     'check_answer',
-#     route_after_check,
-#     {"retry": "chat_message", "end": END},
-# )
+
 checkpointer = InMemorySaver()
 chat = graph.compile(checkpointer=checkpointer)
 
 
+# ToolNode(tools, messages_key="message")
 
-# from IPython.display import Image, display
-# app = graph.compile()
-# app.get_graph().print_ascii()
+# agent = create_agent(
+#     model=llm,              # e.g. your ChatLiteLLMRouter instance
+#     tools=tools,
 
-# print(display(Image(app.get_graph().draw_mermaid_png())))
+# )
+
+
+# graph = StateGraph(MessageState)
+# graph.add_node('agent', create_agent)
