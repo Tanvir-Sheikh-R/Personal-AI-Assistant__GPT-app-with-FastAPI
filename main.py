@@ -37,6 +37,13 @@ NODE_LABELS = {
 app = FastAPI(docs_url=None, redoc_url=None)
 
 
+
+@app.on_event("startup")
+async def warm_models():
+    from chat_app_backend_rag import _get_embeddings
+    _get_embeddings() 
+    
+
 @app.middleware("http")
 async def no_cache_for_static(request, call_next):
     """Prevent the browser from caching the frontend files — otherwise a stale
