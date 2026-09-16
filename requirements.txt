@@ -44,9 +44,5 @@ docx2txt
 pypdf
 pytz
 docker
-<<<<<<< HEAD
-rank_bm25
-tavily
-=======
 rank-bm25
->>>>>>> 90965baf9cebe31eb48f88ee2776be1045736613
+tavily

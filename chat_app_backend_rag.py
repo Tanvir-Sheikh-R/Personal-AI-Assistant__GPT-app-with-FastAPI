@@ -86,7 +86,7 @@ def clear_collection(collection_name: str = "file_embeddings") -> None:
 
 
 def add_documents_to_store(file_paths: list[str],
-                            collection_name: str = "file_embeddings"):
+                           collection_name: str = "file_embeddings"):
     chunks = _load_and_split(file_paths)
     for chunk in chunks:
         chunk.metadata["source"] = os.path.basename(chunk.metadata.get("source", ""))
