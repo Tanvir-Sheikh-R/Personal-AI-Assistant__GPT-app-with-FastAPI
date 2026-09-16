@@ -18,7 +18,8 @@ from langchain_core.messages import HumanMessage, AIMessageChunk
 
 from chat_app_backend import chat, get_summary_for_chatHead
 from chat_app_backend_rag import add_documents_to_store, clear_collection
-
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 # Use absolute paths derived from this file so the app works regardless of the
 # directory uvicorn is started from (relative paths were breaking upload/static).
 
@@ -34,7 +35,24 @@ NODE_LABELS = {
     "tools": "Using tools",
 }
 
-app = FastAPI(docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- Startup Logic ---
+    from chat_app_backend_rag import _get_embeddings
+    
+    # If _get_embeddings() is sync, running it this way prevents blocking the event loop
+    import asyncio
+    await asyncio.to_thread(_get_embeddings) 
+    
+    yield
+
+app = FastAPI(docs_url=None, redoc_url=None, lifespan=lifespan)
+
+# @app.on_event("startup")
+# async def warm_models():
+#     from chat_app_backend_rag import _get_embeddings
+#     _get_embeddings()   # forces the model to load before traffic arrives
 
 
 

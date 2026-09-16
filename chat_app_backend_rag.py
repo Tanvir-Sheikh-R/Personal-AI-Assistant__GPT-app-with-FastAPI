@@ -33,6 +33,20 @@ os.environ["TRANSFORMERS_OFFLINE"] = "1"
 EMBED_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hf_cache")
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
+
+
+
+
+# # ------------------------------------------
+# from pathlib import Path
+# get_path = Path(r"D:\AI-ML\AI Projects\fastapi-chat-app\eval_files\mml-book.pdf")
+# get_path = [str(get_path)]
+# # ------------------------------------------
+
+
+
+
+
 _embeddings_instance = None
 _vectorstore_cache = {}
 
