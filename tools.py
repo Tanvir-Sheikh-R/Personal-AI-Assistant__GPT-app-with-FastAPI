@@ -142,4 +142,5 @@ async def rag_tool(query: str, state: Annotated[dict, InjectedState]) -> str:
 
 
     vector_store = _get_vectorstore(state.get('kb_id', 'file_embeddings'))
-    return await generate_output(query, vector_store)
+    current_doc = state.get('current_doc')
+    return await generate_output(query, vector_store, current_doc=current_doc)

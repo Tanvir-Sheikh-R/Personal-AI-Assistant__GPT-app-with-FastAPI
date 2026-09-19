@@ -25,7 +25,19 @@ function getKbId() {
   }
   return kbId;
 }
-const kbId = getKbId();
+
+function getThreadKbId(threadId) {
+  const list = getThreads();
+  const thread = list.find((t) => t.thread_id === threadId);
+  if (!thread) {
+    return getKbId();
+  }
+  if (!thread.kb_id) {
+    thread.kb_id = generateUUID();
+    saveThreads(list);
+  }
+  return thread.kb_id;
+}
 
 function getThreads() {
   return JSON.parse(localStorage.getItem("threads") || "[]");
@@ -51,7 +63,7 @@ function getActiveThreadId() {
 function createNewThread() {
   const id = generateUUID();
   const list = getThreads();
-  list.unshift({ thread_id: id, title: null });
+  list.unshift({ thread_id: id, title: null, kb_id: generateUUID() });
   saveThreads(list);
   setActiveThreadId(id);
   return id;
@@ -542,6 +554,7 @@ form.addEventListener("submit", async (e) => {
   const { signal } = activeStreamController;
 
   const threadId = getActiveThreadId();
+  const threadKbId = getThreadKbId(threadId);
   const isFirstMessage = messagesInner.querySelectorAll(".message").length === 0;
   const filesToUpload = pendingFiles.slice();
   const filenames = filesToUpload.map((f) => f.name);
@@ -567,7 +580,7 @@ form.addEventListener("submit", async (e) => {
   let indexedError = null;
   if (filesToUpload.length) {
     const fd = new FormData();
-    fd.append("kb_id", kbId);
+    fd.append("kb_id", threadKbId);
     for (const f of filesToUpload) fd.append("files", f);
     try {
       const upRes = await fetch("/upload", { method: "POST", body: fd });
@@ -607,7 +620,7 @@ form.addEventListener("submit", async (e) => {
       ? `[Documents are available in this conversation's knowledge base — use document search if relevant.]\n\n${text}`
       : text;
 
-  const body = new URLSearchParams({ text: chatText, thread_id: threadId, kb_id: kbId });
+  const body = new URLSearchParams({ text: chatText, thread_id: threadId, kb_id: threadKbId });
 
   // While we're generating, the send button's icon becomes a stop square.
   setStreaming(true);

@@ -218,7 +218,7 @@ async def _mmr_search_all(vector_store, queries: list[str], k: int = 4):
         return await asyncio.gather(*tasks)
 
 
-async def generate_output(query: str, vector_store):
+async def generate_output(query: str, vector_store, current_doc: str | None = None):
 
     expanded_queries = _expand_query(query)
 
@@ -233,7 +233,18 @@ async def generate_output(query: str, vector_store):
                 seen_ids.add(key)
                 all_results.append(doc)
 
-    relevant_docs, is_relevant = rerank_chunks(query, all_results, top_k=3)
+    if current_doc:
+        filtered_results = [
+            doc for doc in all_results
+            if (doc.metadata or {}).get('source') == current_doc
+        ]
+    else:
+        filtered_results = all_results
+
+    if not filtered_results:
+        return 'No related chunks were found for this query in the current document. Do not retry the search — answer based on general knowledge or inform the user.'
+
+    relevant_docs, is_relevant = rerank_chunks(query, filtered_results, top_k=3)
 
     if not is_relevant or not relevant_docs:
         return 'No related chunks were found for this query in the uploaded files. Do not retry the search — answer based on general knowledge or inform the user.'

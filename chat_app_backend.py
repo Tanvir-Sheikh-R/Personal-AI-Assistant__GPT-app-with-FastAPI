@@ -144,7 +144,7 @@ def chat_message(state: MessageState):
 graph = StateGraph(MessageState)
 graph.add_node('chat_message', chat_message)
 graph.add_node('tools', ToolNode(tools, messages_key="message"))
-# graph.add_node('check_answer', check_answer_node)
+graph.add_node('check_answer', check_answer_node)
 
 
 graph.add_edge(START, 'chat_message')
@@ -154,6 +154,11 @@ graph.add_conditional_edges(
     {"tools": "tools", "__end__": END},
 )
 graph.add_edge('tools', 'chat_message')
+graph.add_conditional_edges(
+    "check_answer",
+    route_after_check,
+    {"retry": "chat_message", "end": END},
+)
 
 
 checkpointer = InMemorySaver()

@@ -1,262 +1,173 @@
 # Personal AI Assistant
 
-> A production-minded conversational AI application with document understanding, web search, mathematical reasoning, real-time streaming, and isolated per-browser knowledge bases.
+A practical AI app for document-grounded chat, tool use, and real-time responses.
+
+## What this project does
+
+This project gives you a chat assistant that can:
+
+- hold multiple conversation threads in the browser
+- answer questions from uploaded documents
+- search the web for current or external info
+- use a calculator for numeric work
+- stream replies live while the model is generating
+- keep document memory isolated per browser session
+
+## System design
 
 <div align="center">
-    <img src="src/app_img.png" alt="Personal AI Assistant interface" />
-    <br />
-    <br />
-    <a href="http://personal-ai-assistant.duckdns.org/">
-        <strong><big>LIVE DEMO</big></strong>
-    </a>
+  <img src="src/System%20Design.png" alt="System design of the Personal AI Assistant" width="100%" />
 </div>
 
-Personal AI Assistant is primarily a retrieval-augmented generation (RAG) application. It combines document ingestion, embedding search, query expansion, relevance filtering, tool calling, model routing, structured validation, and real-time streaming into one full-stack AI product.
+## Why it’s useful
 
-It combines a FastAPI backend with a LangGraph agent and a lightweight vanilla JavaScript frontend. Users can maintain multiple conversations, upload documents, ask grounded questions about their files, search the web, and evaluate mathematical expressions in one continuous chat experience.
+- document-first answers when files are uploaded
+- strong retrieval flow with reranking and filtering
+- browser-scoped RAG memory via `kb_id`
+- LangGraph orchestration for tool calls and validation
+- clean full-stack setup with a lightweight frontend
 
-## Why This Project Stands Out
-
-- **Agentic orchestration:** LangGraph coordinates model responses and tool execution as an explicit state graph instead of hiding the workflow in one large prompt.
-- **End-to-end RAG pipeline:** uploaded files are parsed, chunked, embedded, searched with MMR, deduplicated, and passed through an LLM relevance grader before becoming context.
-- **Real-time UX:** FastAPI streams model output through Server-Sent Events, while the browser renders tokens incrementally and can cancel an in-flight generation.
-- **Provider resilience:** model routing falls back across multiple Groq models when rate limits occur, while API, connection, and unexpected errors are handled gracefully.
-- **Structured AI outputs:** Pydantic schemas validate query expansion and retrieved-chunk relevance decisions instead of relying on unvalidated free-form text.
-- **Privacy-aware isolation:** each browser receives a UUID-backed knowledge-base namespace, preventing uploaded documents from being mixed across browser sessions.
-- **Frontend details that matter:** thread history, generated titles, file chips, responsive layout, Markdown, syntax highlighting, KaTeX math, code-copy controls, and tool/status feedback.
-
-## Features
-
-### Conversational AI
-
-- Multi-turn conversations powered by LangGraph state.
-- Multiple chat threads with generated titles and inline renaming.
-- Thread IDs and browser-specific knowledge-base IDs managed with `localStorage`.
-- Tool-aware model responses with clear separation between conversation logic and tools.
-- Friendly handling for rate limits, connection failures, API failures, and unexpected model errors.
-
-### Retrieval-Augmented Generation
-
-- Upload and query `PDF`, `DOCX`, `TXT`, and `MD` files.
-- Extract text with PyPDF, Docx2txt, and LangChain text loaders.
-- Split content into overlapping chunks with `RecursiveCharacterTextSplitter`.
-- Generate local embeddings with `sentence-transformers/all-MiniLM-L6-v2`.
-- Persist vectors in ChromaDB under a browser-specific collection.
-- Expand each document query into alternative phrasings and synonyms to improve recall.
-- Run Maximal Marginal Relevance (MMR) embedding search for every query variation.
-- Deduplicate retrieved chunks across expanded queries.
-- Use Pydantic-validated structured output to identify which retrieved embeddings are actually relevant.
-- Filter out weak or topic-only matches before they reach the generation model.
-- Assemble the final context with source filenames for traceability.
-- Preserve source filenames in the context sent to the model.
-- Reject unsupported formats and unreadable or image-only documents with a useful error.
-
-### RAG Pipeline
-
-```text
-Document upload
-    -> text extraction
-    -> chunking with overlap
-    -> local embedding generation
-    -> ChromaDB collection per browser
-
-User question
-    -> query expansion
-    -> MMR search across original + expanded queries
-    -> duplicate removal
-    -> Pydantic-validated relevance grading
-    -> relevant context with source labels
-    -> grounded LLM response
-```
-
-The retrieval layer is designed to improve both recall and precision: query expansion finds differently worded evidence, MMR limits repetitive results, and relevance filtering prevents weakly related chunks from polluting the model context.
-
-### Model Routing and Reliability
-
-- Route requests through an ordered model chain: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.6-27b`, and `qwen/qwen3.8-27b`.
-- Retry with the next model when a Groq `RateLimitError` occurs.
-- Bind the same tool set to each fallback model so routing does not remove capabilities.
-- Catch provider connection failures and API errors at the graph boundary.
-- Return controlled user-facing messages instead of crashing the chat request.
-- Fall back to the original query when structured query expansion fails.
-- Treat retrieval grading failures as no-match results rather than injecting unverified context.
-- Validate generated structured data with Pydantic models such as `QueryExpansion` and `check_chunk_quality`.
-
-### Tools
-
-The assistant can select the right tool for the request:
-
-| Tool | Purpose |
-| --- | --- |
-| `rag_tool` | Search the user's uploaded documents and knowledge base. |
-| `web_search` | Retrieve current, time-sensitive, or general web information through DuckDuckGo. |
-| `calculator` | Evaluate mathematical expressions with SymPy. |
-
-### Streaming and Frontend UX
-
-- Token-by-token responses over Server-Sent Events.
-- Streaming status labels such as `Thinking` and `Using tools`.
-- Stop generation with `AbortController`; the backend closes the async graph stream so cancelled generations do not continue unnecessarily.
-- Upload progress state and visible indexing errors.
-- Markdown rendering with GitHub-flavored Markdown and automatic newline cleanup.
-- KaTeX support for inline and display math.
-- Highlight.js syntax highlighting with copy-to-clipboard controls for code blocks.
-- Responsive sidebar and chat layout with a centered empty state.
-- Automatic thread cleanup when the server no longer has state for old thread IDs.
-
-## Architecture
+## Architecture overview
 
 ```mermaid
 flowchart LR
-    Browser[Vanilla JS UI] -->|POST /chat| API[FastAPI]
-    Browser -->|POST /upload| API
-    API -->|SSE token/status events| Browser
-    API --> Graph[LangGraph state graph]
-    Graph --> Model[Groq model chain]
-    Graph --> Tools{Tool routing}
-    Tools --> RAG[RAG pipeline]
-    Tools --> Web[DuckDuckGo search]
-    Tools --> Calc[SymPy calculator]
-    RAG --> Chroma[(ChromaDB)]
-    RAG --> Embeddings[MiniLM embeddings]
+    UI[Browser UI] --> API[FastAPI backend]
+    API --> Graph[LangGraph workflow]
+    Graph --> LLM[Groq model chain]
+    Graph --> Tools{Tools}
+    Tools --> RAG[Document search]
+    Tools --> Web[Web search]
+    Tools --> Calc[Calculator]
+    RAG --> Vector[(ChromaDB)]
+    RAG --> Embeddings[Embedding model]
 ```
 
-### Chat request flow
-
-1. The browser sends the message, `thread_id`, and browser-scoped `kb_id` to `POST /chat`.
-2. FastAPI starts the LangGraph stream with the thread configuration.
-3. The `chat_message` node invokes the model with the available tools.
-4. If the model requests a tool, `ToolNode` executes it and the graph returns to the model.
-5. FastAPI emits model chunks as SSE events while generation is still running.
-6. The browser incrementally renders the response as Markdown.
-
-### Document query flow
-
-1. The browser uploads files to `POST /upload`.
-2. The backend extracts text, validates readability, chunks the content, and stores embeddings in the collection for that browser's `kb_id`.
-3. The model calls `rag_tool` when the question depends on uploaded content.
-4. The retrieval pipeline expands the query, performs MMR search for each variation, removes duplicate chunks, and grades the candidates.
-5. Only relevant passages, labeled with their source filenames, are returned to the model.
-
-## Technology Stack
-
-| Area | Technology |
-| --- | --- |
-| Backend API | FastAPI, Uvicorn, Python 3.12+ |
-| Agent workflow | LangGraph, LangChain, Pydantic structured output |
-| LLM provider | Groq via `langchain-groq` |
-| Retrieval | ChromaDB, Hugging Face embeddings, recursive text splitting |
-| Document parsing | PyPDF, Docx2txt, LangChain community loaders |
-| Tools | DuckDuckGo search, SymPy |
-| Frontend | HTML, CSS, vanilla JavaScript |
-| Rendering | marked.js, KaTeX, highlight.js |
-| Deployment | Docker, Docker Compose, Vercel configuration |
-
-## Project Structure
+## Project structure
 
 ```text
-.
-├── main.py                    # FastAPI routes, uploads, SSE streaming, static hosting
-├── chat_app_backend.py        # LangGraph state graph and model/tool orchestration
-├── chat_app_backend_rag.py    # Parsing, embeddings, ChromaDB retrieval, relevance grading
-├── llm_router.py               # Groq model fallback chain
-├── tools.py                   # RAG, web search, and calculator tools
-├── prompts.py                 # Assistant behavior and routing instructions
-├── static/
-│   ├── index.html              # Chat application shell
-│   ├── app.js                  # Browser state, streaming, threads, uploads, rendering
-│   └── style.css               # Responsive interface and component styling
-├── src/                        # Static assets
-├── vectorstore/                # Local ChromaDB persistence
+fastapi-chat-app/
+├── main.py
+├── chat_app_backend.py
+├── chat_app_backend_rag.py
+├── llm_router.py
+├── prompts.py
+├── tools.py
+├── requirements.txt
+├── pyproject.toml
 ├── Dockerfile
 ├── compose.yaml
-├── requirements.txt
-└── pyproject.toml
+├── .env
+├── static/
+│   ├── index.html
+│   ├── app.js
+│   └── style.css
+├── src/
+│   ├── System Design.png
+│   └── ...
+├── vectorstore/
+├── eval_files/
+├── .uploaded_files/
+└── README.md
 ```
 
-## Getting Started
+## Core components
+
+### Backend
+
+- `main.py` handles the FastAPI routes, upload flow, and streaming responses.
+- `chat_app_backend.py` contains the LangGraph flow and the self-check logic.
+- `chat_app_backend_rag.py` handles document loading, embeddings, retrieval, reranking, and context generation.
+- `llm_router.py` manages the fallback model chain.
+- `prompts.py` defines the system prompt and document-priority rules.
+- `tools.py` defines the available tools: RAG, web search, and calculator.
+
+### Frontend
+
+- `static/index.html` builds the UI shell
+- `static/app.js` handles chat state, thread management, uploads, and SSE rendering
+- `static/style.css` handles the app styling and layout
+
+## How the app works
+
+### Chat path
+
+1. The browser sends a message and thread info to the backend.
+2. FastAPI starts the LangGraph stream.
+3. The model decides whether it needs a tool.
+4. If a tool is needed, the graph executes it and loops back.
+5. If not, the answer is validated before being sent back to the user.
+6. The frontend renders the response live as tokens arrive.
+
+### RAG path
+
+1. A user uploads supported files.
+2. The backend splits and stores those documents in a browser-specific Chroma collection.
+3. The user asks a question.
+4. The query is expanded and retrieved.
+5. Relevant chunks are reranked and prioritized.
+6. The strongest context is assembled and sent to the model.
+
+## Tech stack
+
+| Area | Stack |
+| --- | --- |
+| Backend | FastAPI, Uvicorn |
+| Agent workflow | LangGraph, LangChain |
+| LLM provider | Groq via `langchain-groq` |
+| Retrieval | ChromaDB, Hugging Face embeddings |
+| Parsing | PyPDF, Docx2txt, TextLoader |
+| Frontend | HTML, CSS, JavaScript |
+| Rendering | marked.js, KaTeX, highlight.js |
+| Math | SymPy |
+
+## Quick start
 
 ### Prerequisites
 
-- Python 3.12 or newer
-- A Groq API key
-- Git and optionally Docker Desktop
+- Python 3.10+
+- Groq API key
+- optional: Docker if you want a containerized run
 
-### Local development
+### Install
 
-```powershell
-git clone <your-repository-url>
-cd fastapi-chat-app
-
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+```bash
 pip install -r requirements.txt
 ```
+
+### Environment
 
 Create a `.env` file in the project root:
 
 ```env
-GROQ_API_KEY=your_groq_api_key
+GROQ_API_KEY=your_key_here
 ```
 
-Start the server:
+### Run locally
 
-```powershell
+```bash
 uvicorn main:app --reload
 ```
 
-Open [http://localhost:8000](http://localhost:8000).
+Then open:
 
-The embedding model is configured for local CPU execution and offline Hugging Face mode. On the first run, make sure the embedding model is available in the local Hugging Face cache used by the application.
+```text
+http://localhost:8000
+```
 
 ### Docker
 
-```powershell
+```bash
 docker compose up --build
 ```
 
-The container runs as a non-root user and prepares writable directories for ChromaDB, model cache, uploads, and retrieval diagnostics. The application is available at [http://localhost:8000](http://localhost:8000).
+## Notes
 
-To build and run directly:
+This project is built to stay readable and practical. The app is intentionally not overbuilt: it keeps the retrieval flow, tool orchestration, and browser isolation easy to reason about while still giving you a working AI product.
 
-```powershell
-docker build -t personal-ai-assistant .
-docker run --env-file .env -p 8000:8000 personal-ai-assistant
-```
+## License
 
-## API Surface
+This project is intended for learning, experimentation, and portfolio use. If you plan to distribute it publicly, add a license file first.
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/chat` | Stream an assistant response as SSE. |
-| `POST` | `/upload` | Index one or more supported documents for a browser knowledge base. |
-| `GET` | `/threads/{thread_id}` | Return renderable user and assistant messages for a thread. |
-| `POST` | `/threads/{thread_id}/title` | Generate a short title from the first message. |
-| `POST` | `/reset` | Clear a browser's ChromaDB collection. |
-
-## Engineering Decisions
-
-### Explicit graph-based orchestration
-
-The conversation path is modeled as a small state machine:
-
-```text
-START -> chat_message -> tool requested? -> tools -> chat_message
-                                |
-                                +-------- no tool call -> END
-```
-
-This keeps tool execution observable and makes the workflow easier to extend than a single opaque agent call.
-
-### Retrieval quality over raw similarity
-
-The RAG pipeline does more than return the nearest vectors. Query expansion improves recall, MMR reduces redundancy, and structured relevance grading filters weak matches before the model sees them. This reduces irrelevant context and makes source attribution more useful to the user.
-
-### Cancellation-aware streaming
-
-The frontend aborts the request when the user stops generation or changes threads. The backend closes the underlying LangGraph async iterator in `finally`, which prevents abandoned generations from continuing to consume provider resources.
-
-### Session isolation
 
 The browser creates a unique `kb_id`, and that ID becomes the ChromaDB collection name used by the RAG tool. This gives each browser session an isolated document namespace without requiring a full authentication system for the prototype.
 

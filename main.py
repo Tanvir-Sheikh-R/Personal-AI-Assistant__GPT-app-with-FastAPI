@@ -192,6 +192,10 @@ async def upload_files(kb_id: str = Form(...), files: list[UploadFile] = File(..
     success = False
     error = None
     try:
+        # Clear the browser's prior document set before re-indexing, so earlier
+        # uploads do not leak into a new question's retrieval context.
+        clear_collection(kb_id)
+
         # Write uploads first (outside the indexing try so path problems are
         # reported as a clean error, not a 500).
         for f in files:
