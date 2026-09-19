@@ -707,6 +707,7 @@ dependencies = [
     { name = "sympy" },
     { name = "tavily" },
     { name = "tf-keras" },
+    { name = "torch" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -741,6 +742,7 @@ requires-dist = [
     { name = "sympy", specifier = ">=1.14.0" },
     { name = "tavily", specifier = ">=1.1.0" },
     { name = "tf-keras", specifier = ">=2.21.0" },
+    { name = "torch", specifier = ">=2.14.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
 ]
 

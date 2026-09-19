@@ -30,13 +30,15 @@ def system_prompt(current_time: str) -> SystemMessage:
                         - Report the result clearly without reproducing unnecessary tool details.
 
                         ### Document search / RAG
-                        
-                        - Use document search when the user's question can be answered from uploaded documents.
-                        - Treat retrieved document content as the primary source for document-specific questions.
-                        - Do not invent information that is missing from the retrieved context.
-                        - When possible, identify the relevant document or source in the answer.
-                        - If the documents do not contain enough information, say so rather than filling the gap with assumptions.
-                        - If document search returns "no relevant documents found," do not immediately retry with a rephrased query — answer using your own knowledge or tell the user the documents don't contain that information. Only search once per question unless the user asks a follow-up.
+
+                        - If the user has uploaded files and the question could plausibly relate to them, call document search exactly once before answering.
+                        - Use the user's uploaded documents as the first source of truth for questions about their contents, including facts, names, dates, numbers, definitions, instructions, and summaries.
+                        - The document-search results are reranked from most relevant to least relevant. The first chunk is the strongest match; prioritize it over lower-ranked chunks. Use lower-ranked chunks as supporting context and resolve conflicts by considering the higher-ranked chunk first.
+                        - Treat only information actually present in the retrieved chunks as document-supported. Do not infer missing document facts or present general knowledge as if it came from the files.
+                        - When answering from retrieved chunks, preserve important qualifiers, numbers, dates, and conditions. Mention the source filename when it is available in the context.
+                        - If the tool returns "No related chunks were found", do not retry document search with another query. Clearly state that the uploaded files did not contain related information, then answer from the model's general knowledge when appropriate.
+                        - If related chunks are found but do not fully answer the question, explain what the documents establish, identify what is missing, and use general knowledge only to fill the gap when it is safe and useful. Clearly distinguish that additional information from the document content.
+                        - Use web search instead of general knowledge when the missing information is current, time-sensitive, or explicitly requires online verification.
 
                         ### Web search
                         - Use web search for current, time-sensitive, recently changed, or externally verifiable information.

@@ -14,6 +14,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 import warnings
 import os
+import re
+
+from rank_bm25 import BM25Okapi
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain_community")
 os.environ["USE_TF"] = "0"
@@ -153,13 +156,6 @@ class QueryExpansion(BaseModel):
     )
 
 
-class check_chunk_quality(BaseModel):
-    relevant_indeces: list[int] = Field(
-        description="0-based indices into the retrieved chunks that are relevant to the question"
-    )
-    relevant: bool = Field(description="True if atleast one relevant answer is found in the retrieved chunks else False")
-
-
 def _expand_query(query: str) -> list[str]:
     expand_prompt = PromptTemplate(
         template="""
@@ -182,48 +178,25 @@ def _expand_query(query: str) -> list[str]:
         return [query]
 
 
-def _generate_relavent_chunks(query: str, results) -> tuple[list, bool]:
+def _tokenize(text: str) -> list[str]:
+    return re.findall(r"[\w]+", text.lower())
+
+
+def rerank_chunks(query: str, results, top_k: int = 3) -> tuple[list, bool]:
+    """Rerank retrieved chunks and keep the top three positive matches."""
     if not results:
         return [], False
 
-    check_prompt = PromptTemplate(
-        template="""
-            You are a strict relevance grader for a retrieval-augmented generation system.
-            Your job is to decide which retrieved chunks, if any, contain information that
-            actually helps answer the user's question — not just chunks that share keywords
-            or topic overlap with it.
-
-            Question: {query}
-            Retrieved Chunks: {results}
-
-            Instructions:
-            - A chunk is relevant only if it contains facts, data, or content that directly
-            helps answer the question — partial relevance counts if the chunk contributes
-            a meaningful piece of the answer, even if it doesn't fully answer it alone.
-            - A chunk is NOT relevant if it merely mentions the same topic, entity, or
-            keywords without actually addressing what is being asked.
-            - Do not use outside knowledge to judge correctness — only judge whether the
-            chunk's content is relevant to the question, not whether it is factually true.
-            - Be strict: when in doubt, exclude a chunk rather than include a weak match.
-            - Return the 0-based indices of every chunk you judge relevant, in the order
-            they appear. If no chunks are relevant, return an empty list.
-            - Set `relevent` to True only if at least one chunk was judged relevant.
-        """,
-        input_variables=['query', 'results']
-    )
-
-    numbered = "\n\n".join(f"[{i}] {doc.page_content}" for i, doc in enumerate(results))
-    try:
-        output = llm_structured.with_structured_output(check_chunk_quality).invoke(
-            check_prompt.format(query=query, results=numbered)
-        )
-    except Exception as e:
-        print(f"[grading] failed, treating as no-match: {e}")
+    tokenized_chunks = [_tokenize(doc.page_content or "") for doc in results]
+    query_tokens = _tokenize(query)
+    if not query_tokens or not any(tokenized_chunks):
         return [], False
 
-    relevant_docs = [results[i] for i in output.relevant_indeces if 0 <= i < len(results)]
-
-    return relevant_docs, output.relevant
+    scores = BM25Okapi(tokenized_chunks).get_scores(query_tokens)
+    ranked_indices = sorted(range(len(results)), key=lambda index: scores[index], reverse=True)
+    relevant_indices = [index for index in ranked_indices if scores[index] > 0][:top_k]
+    print([results[index].page_content for index in relevant_indices])
+    return [results[index] for index in relevant_indices], bool(relevant_indices)
 
 
 async def _mmr_search_all(vector_store, queries: list[str], k: int = 4):
@@ -260,10 +233,10 @@ async def generate_output(query: str, vector_store):
                 seen_ids.add(key)
                 all_results.append(doc)
 
-    relevant_docs, is_relevant = _generate_relavent_chunks(query, all_results)
+    relevant_docs, is_relevant = rerank_chunks(query, all_results, top_k=3)
 
     if not is_relevant or not relevant_docs:
-        return 'No relevant documents were found for this query in the uploaded files. Do not retry the search — answer based on general knowledge or inform the user.'
+        return 'No related chunks were found for this query in the uploaded files. Do not retry the search — answer based on general knowledge or inform the user.'
 
     seen = set()
     context_parts = []

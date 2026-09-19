@@ -34,5 +34,6 @@ dependencies = [
     "sympy>=1.14.0",
     "tavily>=1.1.0",
     "tf-keras>=2.21.0",
+    "torch>=2.14.0",
     "uvicorn[standard]>=0.52.4",
 ]

@@ -1,4 +1,5 @@
 import os
+import asyncio
 import warnings
 import logging
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
@@ -38,28 +39,12 @@ NODE_LABELS = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- Startup Logic ---
     from chat_app_backend_rag import _get_embeddings
-    
-    # If _get_embeddings() is sync, running it this way prevents blocking the event loop
-    import asyncio
-    await asyncio.to_thread(_get_embeddings) 
-    
+
+    await asyncio.to_thread(_get_embeddings)
     yield
 
 app = FastAPI(docs_url=None, redoc_url=None, lifespan=lifespan)
-
-# @app.on_event("startup")
-# async def warm_models():
-#     from chat_app_backend_rag import _get_embeddings
-#     _get_embeddings()   # forces the model to load before traffic arrives
-
-
-
-@app.on_event("startup")
-async def warm_models():
-    from chat_app_backend_rag import _get_embeddings
-    _get_embeddings() 
     
 
 @app.middleware("http")
