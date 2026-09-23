@@ -28,4 +28,3 @@ def _check_answer(question: str, answer: str) -> AnswerCheck:
     return AnswerCheck(is_relevant=noul_value >= 0.5, reason=f"confidence: {noul_value:.2f}")
 
 
-print(_check_answer('What is AI', 'Machine Learning'))
