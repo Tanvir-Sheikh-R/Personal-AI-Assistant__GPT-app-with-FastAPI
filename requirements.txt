@@ -46,3 +46,7 @@ pytz
 docker
 rank-bm25
 tavily
+
+
+langchain-typesafe
+openrouter
